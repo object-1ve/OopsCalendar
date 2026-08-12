@@ -1,8 +1,10 @@
 package com.oops.calendar.web;
 
+import com.oops.calendar.config.FinnhubProperties;
 import com.oops.calendar.config.FmpProperties;
 import com.oops.calendar.dto.EarningsEvent;
 import com.oops.calendar.dto.Session;
+import com.oops.calendar.provider.FinnhubEarningsProvider;
 import com.oops.calendar.provider.FmpEarningsProvider;
 import com.oops.calendar.provider.MockEarningsProvider;
 import com.oops.calendar.provider.UpstreamUnavailableException;
@@ -25,7 +27,9 @@ class EarningsControllerTest {
     private MockMvc mockMvc() {
         FmpProperties props = new FmpProperties();
         props.setApiKey("");
-        EarningsService service = new EarningsService(props, new FmpEarningsProvider(props), new MockEarningsProvider());
+        EarningsService service = new EarningsService(props, new FinnhubProperties(),
+                new FmpEarningsProvider(props), new FinnhubEarningsProvider(new FinnhubProperties()),
+                new MockEarningsProvider());
         return MockMvcBuilders.standaloneSetup(
                 new EarningsController(service), new HealthController(service))
                 .setControllerAdvice(new GlobalExceptionHandler())
@@ -99,7 +103,8 @@ class EarningsControllerTest {
                 throw new UpstreamUnavailableException("FMP API Key 无效(请检查 FMP_API_KEY 配置)");
             }
         };
-        EarningsService service = new EarningsService(props, failing, new MockEarningsProvider());
+        EarningsService service = new EarningsService(props, new FinnhubProperties(), failing,
+                new FinnhubEarningsProvider(new FinnhubProperties()), new MockEarningsProvider());
         service.query(LocalDate.of(2026, 8, 3), LocalDate.of(2026, 8, 7)); // 触发降级
 
         MockMvc mvc = MockMvcBuilders.standaloneSetup(new HealthController(service))

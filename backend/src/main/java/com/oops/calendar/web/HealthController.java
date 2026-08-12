@@ -22,8 +22,8 @@ public class HealthController {
     @GetMapping("/api/health")
     public HealthResponse health() {
         if (service.isDegraded()) {
-            String message = "FMP 上游请求失败(" + service.degradationReason() + "),已回退到内置演示数据,"
-                    + "冷却期后将自动重试恢复。请检查 FMP_API_KEY 与网络。";
+            String message = "财报数据源请求失败(" + service.degradationReason() + "),已回退到内置演示数据,"
+                    + "冷却期后将自动重试恢复。请检查 API Key 与网络。";
             return new HealthResponse("UP", "mock", message, Instant.now().toString());
         }
         String source = service.activeProvider().source();

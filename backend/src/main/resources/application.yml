@@ -22,6 +22,14 @@ fmp:
   # FMP 上游失败后降级为 mock;此冷却时长后自动重试一次上游,成功即恢复
   degraded-retry-ms: 60000
 
+# Finnhub(免费 key,财报日历覆盖完整):设置 FINNHUB_API_KEY 后启用。
+# 数据源优先级:FINNHUB_API_KEY > FMP_API_KEY > mock(演示)。
+finnhub:
+  api-key: ${FINNHUB_API_KEY:}
+  base-url: https://finnhub.io/api/v1
+  connect-timeout-ms: 8000
+  read-timeout-ms: 15000
+
 cors:
   allowed-origins:
     - http://localhost:5173

@@ -57,9 +57,16 @@ pnpm dev                   # http://localhost:5173
 
 ### 3. 使用真实美股财报数据(可选)
 
-默认无 key 时后端以 **mock 模式** 运行(确定性演示数据,含公司名)。
+数据源优先级:**Finnhub > FMP > mock(演示)**。两个 key 都配置时自动用 Finnhub(免费档财报日历覆盖完整);都没配置时用内置演示数据。
 
-注册 <https://financialmodelingprep.com> 获取免费 API key(免费档 250 次/天),然后:
+**推荐:Finnhub**(免费注册 <https://finnhub.io>,财报日历覆盖完整,含 NBIS/Cerebras 等全部公司):
+
+```bash
+# Windows (PowerShell)
+$env:FINNHUB_API_KEY="你的key"; mvn spring-boot:run
+```
+
+**FMP**(免费注册 <https://site.financialmodelingprep.com>,免费档日历数据较稀疏):
 
 ```bash
 # Windows (PowerShell)
@@ -67,15 +74,15 @@ $env:FMP_API_KEY="你的key"; mvn spring-boot:run
 # 或在 backend/src/main/resources/application.yml 中填写 fmp.api-key
 ```
 
-配置后重启,`/api/health` 的 provider 变为 `fmp`。mock 与 fmp 数据都带有 `source` 字段,前端会显示数据来源。
+配置后重启,`/api/health` 的 provider 变为 `finnhub` / `fmp`。所有数据都带 `source` 字段,前端会显示数据来源。
 
-### FMP 上游故障时的自动降级
+### 上游故障时的自动降级
 
-即使配置了 `FMP_API_KEY`,如果上游不可用,后端会**自动降级到演示数据(mock 保底)**,保证应用始终可用:
+即使配置了 API key,如果上游不可用,后端会**自动降级到演示数据(mock 保底)**,保证应用始终可用:
 
-- **触发条件**:FMP 连接失败 / 超时 / 返回 4xx、5xx / 响应解析失败 / 返回错误响应体(如 API Key 无效)。
-- **行为**:该请求回退 `MockEarningsProvider` 返回演示数据(`/api/earnings` 仍为 200,`source=mock`),区间与单股接口行为一致;后端记录降级状态,日志只记录简短摘要,不会输出 FMP 原始响应体。
-- **健康检查**:降级时 `/api/health` 返回 `{"status":"UP","provider":"mock","message":"FMP 上游请求失败(...),已回退到内置演示数据,冷却期后将自动重试恢复。请检查 FMP_API_KEY 与网络。"}`,前端徽章会显示"演示数据"并将该说明作为 tooltip。
+- **触发条件**:上游连接失败 / 超时 / 返回 4xx、5xx / 响应解析失败 / 返回错误响应体(如 API Key 无效)。
+- **行为**:该请求回退 `MockEarningsProvider` 返回演示数据(`/api/earnings` 仍为 200,`source=mock`),区间与单股接口行为一致;后端记录降级状态,日志只记录简短摘要,不会输出上游原始响应体。
+- **健康检查**:降级时 `/api/health` 返回 `{"status":"UP","provider":"mock","message":"财报数据源请求失败(...),已回退到内置演示数据,冷却期后将自动重试恢复。请检查 API Key 与网络。"}`,前端徽章会显示"演示数据"并将该说明作为 tooltip。
 - **自动恢复**:降级后进入冷却期(默认 60 秒,配置项 `fmp.degraded-retry-ms`),冷却期结束后下个请求会自动重试一次 FMP,成功则切回真实数据并退出降级态。
 - **启动探测**:应用启动时会用 `FMP_API_KEY` 做一次轻量探测(查当天数据),失败立即进入降级态,避免 `/api/health` 谎报"已连接"。
 
@@ -98,7 +105,7 @@ pnpm preview                      # 本地验证生产构建: http://127.0.0.1:4
 
 要点:
 
-- **生产可服务性**:`vite preview` 与开发态 `server` 使用同一份 `/api` 代理配置(`preview.proxy` 镜像 `server.proxy`),所以 `dist` 产物在预览或任何静态托管下,`/api/*` 都能转发到 `http://localhost:8080` 正常取数,无需修改前端代码。
+- **生产可服务性**:`vite preview` 与开发态 `server` 使用同一份 `/api` 代理配置(`preview.proxy` 镜像 `server.proxy`),所以 `dist` 产物在预览或任何静态托管下,`/api/*` 都能转发到 `http://localhost:8080` 正常取数,无需修改前端代码。若后端不在 8080(如隔离端口联调),可用环境变量覆盖:`VITE_API_TARGET=http://localhost:8091 pnpm preview`(对 `pnpm dev` 同样生效)。
 - **正式部署**(二选一):
   - 一体化:把 `frontend/dist` 交给任意静态服务器(Nginx / Caddy / CDN 等),并将 `/api` 反向代理到后端 8080。Nginx 示例:
 

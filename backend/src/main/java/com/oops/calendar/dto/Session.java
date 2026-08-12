@@ -38,6 +38,7 @@ public enum Session {
             case "after-market":
                 return AMC;
             case "dnh":
+            case "dmh":
             case "during":
                 return DNH;
             default:

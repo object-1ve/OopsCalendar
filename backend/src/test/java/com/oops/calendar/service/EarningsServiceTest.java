@@ -1,9 +1,11 @@
 package com.oops.calendar.service;
 
+import com.oops.calendar.config.FinnhubProperties;
 import com.oops.calendar.config.FmpProperties;
 import com.oops.calendar.dto.EarningsEvent;
 import com.oops.calendar.dto.EarningsResponse;
 import com.oops.calendar.dto.Session;
+import com.oops.calendar.provider.FinnhubEarningsProvider;
 import com.oops.calendar.provider.FmpEarningsProvider;
 import com.oops.calendar.provider.MockEarningsProvider;
 import com.oops.calendar.provider.UpstreamUnavailableException;
@@ -38,7 +40,9 @@ class EarningsServiceTest {
     void setUp() {
         props = new FmpProperties();
         props.setApiKey(""); // mock 模式
-        service = new EarningsService(props, new FmpEarningsProvider(props), new MockEarningsProvider());
+        service = new EarningsService(props, new FinnhubProperties(),
+                new FmpEarningsProvider(props), new FinnhubEarningsProvider(new FinnhubProperties()),
+                new MockEarningsProvider());
     }
 
     @Test
@@ -125,7 +129,8 @@ class EarningsServiceTest {
         props.setDegradedRetryMs(0);
         props.setMinRequestIntervalMs(0); // 测试中禁用上游节流等待
         FlakyFmpProvider fmp = new FlakyFmpProvider(props, "FMP API Key 无效(请检查 FMP_API_KEY 配置)", failForCalls);
-        return new EarningsService(props, fmp, new MockEarningsProvider());
+        return new EarningsService(props, new FinnhubProperties(), fmp,
+                new FinnhubEarningsProvider(new FinnhubProperties()), new MockEarningsProvider());
     }
 
     @Test
@@ -215,7 +220,8 @@ class EarningsServiceTest {
         p.setCacheTtlSeconds(0);
         p.setDegradedRetryMs(0);
         CountingFmpProvider fmp = new CountingFmpProvider(p);
-        EarningsService svc = new EarningsService(p, fmp, new MockEarningsProvider());
+        EarningsService svc = new EarningsService(p, new FinnhubProperties(), fmp,
+                new FinnhubEarningsProvider(new FinnhubProperties()), new MockEarningsProvider());
 
         LocalDate from = LocalDate.of(2026, 8, 3);
         LocalDate to = LocalDate.of(2026, 8, 5);

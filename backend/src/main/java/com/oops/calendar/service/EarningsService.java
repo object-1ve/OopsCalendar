@@ -1,10 +1,12 @@
 package com.oops.calendar.service;
 
 import com.oops.calendar.config.FmpProperties;
+import com.oops.calendar.config.FinnhubProperties;
 import com.oops.calendar.dto.EarningsEvent;
 import com.oops.calendar.dto.EarningsResponse;
 import com.oops.calendar.dto.Session;
 import com.oops.calendar.provider.EarningsProvider;
+import com.oops.calendar.provider.FinnhubEarningsProvider;
 import com.oops.calendar.provider.FmpEarningsProvider;
 import com.oops.calendar.provider.MockEarningsProvider;
 import com.oops.calendar.provider.UpstreamUnavailableException;
@@ -49,10 +51,16 @@ public class EarningsService {
     private volatile Instant degradedAt = null;
 
     public EarningsService(FmpProperties props,
+                           FinnhubProperties finnhubProps,
                            FmpEarningsProvider fmpProvider,
+                           FinnhubEarningsProvider finnhubProvider,
                            MockEarningsProvider mockProvider) {
         this.props = props;
-        this.provider = props.hasApiKey() ? fmpProvider : mockProvider;
+        // 数据源优先级:FINNHUB_API_KEY(免费档数据完整)> FMP_API_KEY > mock(演示)
+        // 用户同时配置两个 key 时自动使用 Finnhub,无需手动删除 FMP key。
+        this.provider = finnhubProps.hasApiKey() ? finnhubProvider
+                : props.hasApiKey() ? fmpProvider
+                : mockProvider;
         this.mockProvider = mockProvider;
         log.info("Earnings provider active: {}", this.provider.source());
     }
@@ -190,9 +198,9 @@ public class EarningsService {
         log.warn("FMP upstream unavailable ({}), fallback to mock provider", e.getMessage());
     }
 
-    /** FMP 免费档限流保护:距上次上游调用不足最小间隔时等待。 */
+    /** 限流保护(免费档):距上次上游调用不足最小间隔时等待。FMP 与 Finnhub 均适用。 */
     private void throttleIfNeeded() {
-        if (!"fmp".equals(provider.source())) {
+        if ("mock".equals(provider.source())) {
             return;
         }
         long minIntervalNanos = props.getMinRequestIntervalMs() * 1_000_000L;
