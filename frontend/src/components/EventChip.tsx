@@ -14,7 +14,8 @@ export default function EventChip({ event, compact }: Props) {
   } · ${event.session === 'BMO' ? '盘前' : event.session === 'AMC' ? '盘后' : event.session === 'DNH' ? '盘中' : '待定'}`
   return (
     <span className={cls} title={title.trim()}>
-      {event.confirmed ? '✓' : '·'} {compact ? event.symbol : `${event.symbol} ${displayName}`}
+      {event.confirmed ? '✓' : '·'}{' '}
+      {compact ? event.symbol : displayName || event.symbol}
     </span>
   )
 }

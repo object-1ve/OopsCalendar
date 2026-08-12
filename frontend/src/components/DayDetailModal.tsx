@@ -138,9 +138,6 @@ export default function DayDetailModal({ date, events, onClose }: Props) {
               <div className="event-main">
                 <div className="event-company">
                   <span className="event-name">{e.nameZh ?? e.name ?? e.symbol}</span>
-                  {e.nameZh && e.name && (
-                    <span className="event-name-en">{e.name}</span>
-                  )}
                   {e.industry && <span className="industry-tag">{e.industry}</span>}
                 </div>
                 <span className="event-symbol">{e.symbol}</span>
