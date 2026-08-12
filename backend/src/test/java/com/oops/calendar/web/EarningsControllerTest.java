@@ -9,6 +9,8 @@ import com.oops.calendar.provider.FmpEarningsProvider;
 import com.oops.calendar.provider.MockEarningsProvider;
 import com.oops.calendar.provider.UpstreamUnavailableException;
 import com.oops.calendar.service.EarningsService;
+import com.oops.calendar.service.EnrichmentService;
+import com.oops.calendar.service.FinnhubSymbolService;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -28,6 +30,7 @@ class EarningsControllerTest {
         FmpProperties props = new FmpProperties();
         props.setApiKey("");
         EarningsService service = new EarningsService(props, new FinnhubProperties(),
+                new EnrichmentService(new FinnhubSymbolService(new FinnhubProperties())),
                 new FmpEarningsProvider(props), new FinnhubEarningsProvider(new FinnhubProperties()),
                 new MockEarningsProvider());
         return MockMvcBuilders.standaloneSetup(
@@ -103,7 +106,8 @@ class EarningsControllerTest {
                 throw new UpstreamUnavailableException("FMP API Key 无效(请检查 FMP_API_KEY 配置)");
             }
         };
-        EarningsService service = new EarningsService(props, new FinnhubProperties(), failing,
+        EarningsService service = new EarningsService(props, new FinnhubProperties(),
+                new EnrichmentService(new FinnhubSymbolService(new FinnhubProperties())), failing,
                 new FinnhubEarningsProvider(new FinnhubProperties()), new MockEarningsProvider());
         service.query(LocalDate.of(2026, 8, 3), LocalDate.of(2026, 8, 7)); // 触发降级
 

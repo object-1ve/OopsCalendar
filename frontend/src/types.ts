@@ -9,6 +9,8 @@ export interface EarningsEvent {
   date: string // YYYY-MM-DD
   symbol: string
   name: string | null
+  /** 行业分类(中文),知名公司内置表提供 */
+  industry: string | null
   session: Session
   /** true = 已公布(有实际 EPS/营收);false = 未公布(仅预估) */
   confirmed: boolean

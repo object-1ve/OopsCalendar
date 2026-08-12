@@ -128,6 +128,10 @@ export default function DayDetailModal({ date, events, onClose }: Props) {
           {filtered.slice(0, hidden ? MAX_RENDER : filtered.length).map((e) => (
             <div key={`${e.date}-${e.symbol}`} className="event-row">
               <div className="event-main">
+                <div className="event-company">
+                  <span className="event-name">{e.name ?? e.symbol}</span>
+                  {e.industry && <span className="industry-tag">{e.industry}</span>}
+                </div>
                 <span className="event-symbol">{e.symbol}</span>
                 <EventChip event={e} />
                 <span className={`status-badge ${e.confirmed ? 'done' : 'todo'}`}>
@@ -135,7 +139,6 @@ export default function DayDetailModal({ date, events, onClose }: Props) {
                 </span>
               </div>
               <div className="event-detail">
-                <span>{e.name ?? ''}</span>
                 <span>
                   EPS 实际 <b>{e.eps ?? '—'}</b> / 预估 <b>{e.epsEstimated ?? '—'}</b>
                 </span>

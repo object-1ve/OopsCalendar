@@ -462,9 +462,39 @@ body {
   flex-wrap: wrap;
 }
 
-.event-symbol {
+.event-company {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.event-name {
   font-weight: 700;
   font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+
+.industry-tag {
+  font-size: 11px;
+  color: var(--text-dim);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 8px;
+  white-space: nowrap;
+}
+
+.event-symbol {
+  font-size: 12px;
+  color: var(--text-dim);
+  font-weight: 600;
+  background: var(--bg-3);
+  border-radius: 5px;
+  padding: 1px 6px;
 }
 
 .status-badge {

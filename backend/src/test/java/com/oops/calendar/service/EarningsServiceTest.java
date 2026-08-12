@@ -40,9 +40,13 @@ class EarningsServiceTest {
     void setUp() {
         props = new FmpProperties();
         props.setApiKey(""); // mock 模式
-        service = new EarningsService(props, new FinnhubProperties(),
+        service = new EarningsService(props, new FinnhubProperties(), enrichmentService(),
                 new FmpEarningsProvider(props), new FinnhubEarningsProvider(new FinnhubProperties()),
                 new MockEarningsProvider());
+    }
+
+    private static EnrichmentService enrichmentService() {
+        return new EnrichmentService(new FinnhubSymbolService(new FinnhubProperties()));
     }
 
     @Test
@@ -129,7 +133,7 @@ class EarningsServiceTest {
         props.setDegradedRetryMs(0);
         props.setMinRequestIntervalMs(0); // 测试中禁用上游节流等待
         FlakyFmpProvider fmp = new FlakyFmpProvider(props, "FMP API Key 无效(请检查 FMP_API_KEY 配置)", failForCalls);
-        return new EarningsService(props, new FinnhubProperties(), fmp,
+        return new EarningsService(props, new FinnhubProperties(), enrichmentService(), fmp,
                 new FinnhubEarningsProvider(new FinnhubProperties()), new MockEarningsProvider());
     }
 
@@ -220,7 +224,7 @@ class EarningsServiceTest {
         p.setCacheTtlSeconds(0);
         p.setDegradedRetryMs(0);
         CountingFmpProvider fmp = new CountingFmpProvider(p);
-        EarningsService svc = new EarningsService(p, new FinnhubProperties(), fmp,
+        EarningsService svc = new EarningsService(p, new FinnhubProperties(), enrichmentService(), fmp,
                 new FinnhubEarningsProvider(new FinnhubProperties()), new MockEarningsProvider());
 
         LocalDate from = LocalDate.of(2026, 8, 3);

@@ -43,6 +43,7 @@ public class EarningsService {
     private final FmpProperties props;
     private final EarningsProvider provider;
     private final MockEarningsProvider mockProvider;
+    private final EnrichmentService enrichmentService;
     private final Map<String, CachedRange> cache = new ConcurrentHashMap<>();
     private final AtomicLong lastUpstreamCallNanos = new AtomicLong(0);
 
@@ -52,6 +53,7 @@ public class EarningsService {
 
     public EarningsService(FmpProperties props,
                            FinnhubProperties finnhubProps,
+                           EnrichmentService enrichmentService,
                            FmpEarningsProvider fmpProvider,
                            FinnhubEarningsProvider finnhubProvider,
                            MockEarningsProvider mockProvider) {
@@ -62,6 +64,7 @@ public class EarningsService {
                 : props.hasApiKey() ? fmpProvider
                 : mockProvider;
         this.mockProvider = mockProvider;
+        this.enrichmentService = enrichmentService;
         log.info("Earnings provider active: {}", this.provider.source());
     }
 
@@ -142,6 +145,8 @@ public class EarningsService {
 
         events.sort(Comparator.comparing((EarningsEvent e) -> e.date)
                 .thenComparing(e -> e.symbol, String.CASE_INSENSITIVE_ORDER));
+        // 富化:补充公司全称与行业分类(富化结果随缓存保存,不重复拉取)
+        enrichmentService.enrich(events);
         cache.put(cacheKey, new CachedRange(events, Instant.now(), source));
         return new EarningsResponse(from.toString(), to.toString(), events.size(), source, events);
     }
