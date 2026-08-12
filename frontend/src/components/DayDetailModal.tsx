@@ -131,7 +131,10 @@ export default function DayDetailModal({ date, events, onClose }: Props) {
         <div className="modal-body">
           {filtered.length === 0 && <p className="empty">无匹配的财报。</p>}
           {filtered.slice(0, hidden ? MAX_RENDER : filtered.length).map((e) => (
-            <div key={`${e.date}-${e.symbol}`} className="event-row">
+            <div
+              key={`${e.date}-${e.symbol}`}
+              className={`event-row session-${e.session.toLowerCase()}`}
+            >
               <div className="event-main">
                 <div className="event-company">
                   <span className="event-name">{e.name ?? e.symbol}</span>

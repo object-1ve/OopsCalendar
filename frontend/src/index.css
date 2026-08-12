@@ -497,12 +497,34 @@ body {
 }
 
 .event-row {
-  padding: 10px 0;
+  padding: 10px 0 10px 10px;
   border-bottom: 1px dashed var(--border);
+  border-radius: 6px;
+  margin: 2px 0;
 }
 
 .event-row:last-child {
   border-bottom: none;
+}
+
+/* ===== 弹窗行时段背景:蓝=盘前,紫=盘后,灰=盘中 ===== */
+.event-row.session-bmo {
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.12), rgba(59, 130, 246, 0.02) 70%, transparent);
+  border-left: 3px solid var(--blue);
+}
+
+.event-row.session-amc {
+  background: linear-gradient(90deg, rgba(168, 85, 247, 0.12), rgba(168, 85, 247, 0.02) 70%, transparent);
+  border-left: 3px solid var(--purple);
+}
+
+.event-row.session-dnh {
+  background: linear-gradient(90deg, rgba(100, 116, 139, 0.10), transparent);
+  border-left: 3px solid var(--gray);
+}
+
+.event-row.session-unknown {
+  background: rgba(15, 23, 42, 0.3);
 }
 
 .event-main {
