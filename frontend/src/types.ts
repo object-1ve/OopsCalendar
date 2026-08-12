@@ -9,6 +9,8 @@ export interface EarningsEvent {
   date: string // YYYY-MM-DD
   symbol: string
   name: string | null
+  /** 公司中文名称(知名公司提供) */
+  nameZh: string | null
   /** 行业分类(中文),知名公司内置表提供 */
   industry: string | null
   session: Session

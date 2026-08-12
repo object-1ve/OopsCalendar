@@ -10,7 +10,8 @@ public class EarningsEvent {
 
     public String date;              // YYYY-MM-DD
     public String symbol;            // 股票代码,如 AAPL
-    public String name;              // 公司全称,FMP 日历接口无此字段时为 null
+    public String name;              // 公司英文全称
+    public String nameZh;            // 公司中文名称(知名公司提供)
     public String industry;          // 行业分类(中文),知名公司内置表提供
     public Session session;          // 盘前/盘后/盘中/待定
     public boolean confirmed;        // 是否已公布

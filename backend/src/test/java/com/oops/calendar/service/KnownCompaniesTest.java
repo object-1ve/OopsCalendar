@@ -22,6 +22,15 @@ class KnownCompaniesTest {
     }
 
     @Test
+    void providesChineseNames() {
+        assertEquals("思科", KnownCompanies.get("CSCO").nameZh);
+        assertEquals("应用材料", KnownCompanies.get("AMAT").nameZh);
+        assertEquals("苹果", KnownCompanies.get("AAPL").nameZh);
+        assertEquals("英伟达", KnownCompanies.get("NVDA").nameZh);
+        assertEquals("阿里巴巴", KnownCompanies.get("BABA").nameZh);
+    }
+
+    @Test
     void lookupIsCaseInsensitive() {
         assertEquals("Apple Inc.", KnownCompanies.get("aapl").name);
         assertEquals("NVIDIA Corp.", KnownCompanies.get("Nvda").name);

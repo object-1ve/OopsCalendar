@@ -25,6 +25,7 @@ public class EnrichmentService {
                 if (e.name == null) {
                     e.name = known.name;
                 }
+                e.nameZh = known.nameZh;
                 e.industry = known.industry;
             } else if (e.name == null) {
                 e.name = symbolService.nameOf(e.symbol);
