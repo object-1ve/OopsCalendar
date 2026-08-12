@@ -41,3 +41,14 @@ export function fetchEarnings(year: number, month: number, signal?: AbortSignal)
 export function fetchHealth(signal?: AbortSignal): Promise<HealthResponse> {
   return getJson<HealthResponse>('/api/health', signal)
 }
+
+export interface ValuationResponse {
+  date: string
+  count: number
+  values: Record<string, number>
+}
+
+/** 某日财报公司的市盈率(仅知名公司)。 */
+export function fetchValuation(date: string, signal?: AbortSignal): Promise<ValuationResponse> {
+  return getJson<ValuationResponse>(`/api/valuation?date=${date}`, signal)
+}

@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { EarningsEvent, Session } from '../types'
+import { fetchValuation } from '../api'
 import EventChip from './EventChip'
 
 interface Props {
@@ -30,6 +31,17 @@ export default function DayDetailModal({ date, events, onClose }: Props) {
   const [query, setQuery] = useState('')
   const [sessions, setSessions] = useState<Set<Session>>(new Set())
   const [status, setStatus] = useState<'all' | 'confirmed' | 'pending'>('all')
+  const [peMap, setPeMap] = useState<Record<string, number>>({})
+
+  // 打开弹窗时加载当日知名公司的市盈率
+  useEffect(() => {
+    const controller = new AbortController()
+    setPeMap({})
+    fetchValuation(date, controller.signal)
+      .then((resp) => setPeMap(resp.values))
+      .catch(() => setPeMap({}))
+    return () => controller.abort()
+  }, [date])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -134,6 +146,11 @@ export default function DayDetailModal({ date, events, onClose }: Props) {
                 </div>
                 <span className="event-symbol">{e.symbol}</span>
                 <EventChip event={e} />
+                {peMap[e.symbol] != null && (
+                  <span className="pe-tag" title="市盈率 PE(TTM)">
+                    PE {peMap[e.symbol].toFixed(1)}
+                  </span>
+                )}
                 <span className={`status-badge ${e.confirmed ? 'done' : 'todo'}`}>
                   {e.confirmed ? '✓ 已公布' : '未公布'}
                 </span>
