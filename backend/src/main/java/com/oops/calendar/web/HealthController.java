@@ -29,8 +29,8 @@ public class HealthController {
         String source = service.activeProvider().source();
         boolean mock = "mock".equals(source);
         String message = mock
-                ? "未配置 FMP_API_KEY,当前使用内置演示数据(确定性生成)。设置 FMP_API_KEY 环境变量后重启即可切换为真实美股财报数据。"
-                : "已连接 Financial Modeling Prep 真实财报数据。";
+                ? "未配置数据源 API Key,当前使用内置演示数据(确定性生成)。设置 FINNHUB_API_KEY 或 FMP_API_KEY 环境变量后重启即可切换为真实美股财报数据。"
+                : "已连接 " + ("fmp".equals(source) ? "Financial Modeling Prep" : "Finnhub") + " 真实财报数据。";
         return new HealthResponse("UP", source, message, Instant.now().toString());
     }
 }

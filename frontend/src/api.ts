@@ -16,7 +16,8 @@ export function monthRange(year: number, month: number): { from: string; to: str
 }
 
 async function getJson<T>(url: string, signal?: AbortSignal): Promise<T> {
-  const resp = await fetch(url, { signal })
+  // no-store:财报数据/数据源状态需要保持新鲜,禁用浏览器 HTTP 缓存
+  const resp = await fetch(url, { signal, cache: 'no-store' })
   if (!resp.ok) {
     let message = `请求失败 (HTTP ${resp.status})`
     try {

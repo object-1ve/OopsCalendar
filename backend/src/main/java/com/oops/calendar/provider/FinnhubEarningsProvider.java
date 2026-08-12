@@ -122,8 +122,9 @@ public class FinnhubEarningsProvider implements EarningsProvider {
             }
             BigDecimal epsActual = decimalOrNull(node, "epsActual");
             BigDecimal epsEstimate = decimalOrNull(node, "epsEstimate");
-            BigDecimal revenueActual = decimalOrNull(node, "revenueActual");
-            BigDecimal revenueEstimate = decimalOrNull(node, "revenueEstimate");
+            // Finnhub 营收为美元,FMP/mock 为百万美元;统一为百万美元口径
+            BigDecimal revenueActual = toMillions(decimalOrNull(node, "revenueActual"));
+            BigDecimal revenueEstimate = toMillions(decimalOrNull(node, "revenueEstimate"));
             boolean confirmed = epsActual != null || revenueActual != null;
             Session session = Session.fromFmpTime(textOrNull(node, "hour"));
             events.add(new EarningsEvent(date, symbol, null, session, confirmed,
@@ -131,6 +132,14 @@ public class FinnhubEarningsProvider implements EarningsProvider {
         }
         log.info("Finnhub earnings calendar: {} events in [{}, {}]", events.size(), from, to);
         return events;
+    }
+
+    /** 美元 -> 百万美元(2 位小数),保持与 FMP/mock 口径一致。 */
+    private BigDecimal toMillions(BigDecimal dollars) {
+        if (dollars == null) {
+            return null;
+        }
+        return dollars.divide(BigDecimal.valueOf(1_000_000), 2, java.math.RoundingMode.HALF_UP);
     }
 
     private String ioFailureReason(ResourceAccessException e) {

@@ -41,7 +41,14 @@ export default function DayDetailModal({ date, events, onClose }: Props) {
                   营收(百万$)实际 <b>{e.revenue?.toLocaleString() ?? '—'}</b> / 预估{' '}
                   <b>{e.revenueEstimated?.toLocaleString() ?? '—'}</b>
                 </span>
-                <span className="source-tag">数据源:{e.source === 'fmp' ? 'FMP 真实数据' : '演示数据'}</span>
+                <span className="source-tag">
+                  数据源:
+                  {e.source === 'fmp'
+                    ? 'FMP 真实数据'
+                    : e.source === 'finnhub'
+                      ? 'Finnhub 真实数据'
+                      : '演示数据'}
+                </span>
               </div>
             </div>
           ))}

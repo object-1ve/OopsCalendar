@@ -54,9 +54,9 @@ class FinnhubEarningsProviderTest {
     @Test
     void parsesSessionsAndConfirmed() {
         String body = "{\"earningsCalendar\":["
-                + "{\"date\":\"2026-08-21\",\"symbol\":\"NBIS\",\"hour\":\"bmo\",\"epsActual\":null,\"epsEstimate\":0.87,\"revenueActual\":null,\"revenueEstimate\":220},"
-                + "{\"date\":\"2026-08-21\",\"symbol\":\"CBRS\",\"hour\":\"amc\",\"epsActual\":-0.12,\"epsEstimate\":-0.15,\"revenueActual\":185,\"revenueEstimate\":170},"
-                + "{\"date\":\"2026-08-21\",\"symbol\":\"AAPL\",\"hour\":\"dmh\",\"epsActual\":null,\"epsEstimate\":1.2,\"revenueActual\":null,\"revenueEstimate\":90000}"
+                + "{\"date\":\"2026-08-21\",\"symbol\":\"NBIS\",\"hour\":\"bmo\",\"epsActual\":null,\"epsEstimate\":0.87,\"revenueActual\":null,\"revenueEstimate\":220000000},"
+                + "{\"date\":\"2026-08-21\",\"symbol\":\"CBRS\",\"hour\":\"amc\",\"epsActual\":-0.12,\"epsEstimate\":-0.15,\"revenueActual\":185000000,\"revenueEstimate\":170000000},"
+                + "{\"date\":\"2026-08-21\",\"symbol\":\"AAPL\",\"hour\":\"dmh\",\"epsActual\":null,\"epsEstimate\":1.2,\"revenueActual\":null,\"revenueEstimate\":90000000000}"
                 + "]}";
         server.expect(requestTo(URL))
                 .andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
@@ -77,10 +77,12 @@ class FinnhubEarningsProviderTest {
         assertEquals(Session.AMC, cbrs.session);
         assertTrue(cbrs.confirmed);
         assertEquals(0, cbrs.eps.compareTo(new BigDecimal("-0.12")));
+        assertEquals(0, cbrs.revenue.compareTo(new BigDecimal("185.00")), "营收应归一化为百万美元");
         assertEquals("finnhub", cbrs.source);
 
         EarningsEvent aapl = events.get(2);
         assertEquals(Session.DNH, aapl.session);
+        assertEquals(0, aapl.revenueEstimated.compareTo(new BigDecimal("90000.00")), "营收应归一化为百万美元");
     }
 
     @Test

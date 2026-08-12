@@ -24,10 +24,16 @@ export default function App() {
         </div>
         <div className="header-right">
           <span
-            className={`source-badge ${health?.provider === 'fmp' ? 'real' : 'mock'}`}
+            className={`source-badge ${health?.provider === 'fmp' || health?.provider === 'finnhub' ? 'real' : 'mock'}`}
             title={health?.message ?? '数据源未知'}
           >
-            {health ? (health.provider === 'fmp' ? '● FMP 真实数据' : '● 演示数据') : '…'}
+            {health
+              ? health.provider === 'fmp'
+                ? '● FMP 真实数据'
+                : health.provider === 'finnhub'
+                  ? '● Finnhub 真实数据'
+                  : '● 演示数据'
+              : '…'}
           </span>
           <button className="btn" onClick={refresh} disabled={loading} title="重新加载当前月">
             ↻ 刷新

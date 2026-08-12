@@ -16,20 +16,21 @@ export interface EarningsEvent {
   epsEstimated: number | null
   revenue: number | null
   revenueEstimated: number | null
-  source: 'fmp' | 'mock'
+  /** 数据源:finnhub / fmp / mock */
+  source: 'finnhub' | 'fmp' | 'mock'
 }
 
 export interface EarningsResponse {
   from: string
   to: string
   count: number
-  source: 'fmp' | 'mock'
+  source: 'finnhub' | 'fmp' | 'mock'
   events: EarningsEvent[]
 }
 
 export interface HealthResponse {
   status: string
-  provider: 'fmp' | 'mock'
+  provider: 'finnhub' | 'fmp' | 'mock'
   message: string
   timestamp: string
 }
