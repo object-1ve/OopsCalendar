@@ -1,5 +1,7 @@
 # 📅 美股财报日历 (OopsCalendar)
 
+> 项目实际位置:`C:\object1ve\OopsCalendar\app`(原计划路径 `D:\0_project\OopsCalendar\app` 在本机不存在)。
+
 前后端分离的美股财报日历 Web 应用:
 
 - **前端**: React 19 + Vite 8 + TypeScript + pnpm
