@@ -69,16 +69,12 @@ export default function CalendarView({ year, month, events, loading, onSelectDay
           const dayEvents = byDate.get(cell.date) ?? []
           const visible = dayEvents.slice(0, MAX_CHIPS)
           const rest = dayEvents.length - visible.length
-          // 整格时段提示:顶部蓝条=有盘前,底部紫条=有盘后,底色渐变同色
-          const hasBmo = dayEvents.some((e) => e.session === 'BMO')
-          const hasAmc = dayEvents.some((e) => e.session === 'AMC')
-          const sessionClass = hasBmo && hasAmc ? ' session-both' : hasBmo ? ' session-bmo' : hasAmc ? ' session-amc' : ''
           return (
             <div
               key={cell.date}
               className={`day-cell ${cell.inMonth ? '' : 'out-month'} ${cell.isToday ? 'today' : ''} ${
                 dayEvents.length > 0 ? 'has-events' : ''
-              }${sessionClass}`}
+              }`}
               onClick={() => onSelectDay(cell.date)}
               title={dayEvents.length > 0 ? `点击查看 ${dayEvents.length} 条财报` : undefined}
             >

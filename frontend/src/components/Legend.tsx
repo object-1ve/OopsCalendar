@@ -23,7 +23,6 @@ export default function Legend() {
         <span className="chip demo dnh pending">盘中</span>
         <span className="legend-label">盘中 / 待定</span>
       </span>
-      <span className="legend-note">日期格:顶部蓝条=当日有盘前,底部紫条=当日有盘后,底色同色渐变</span>
     </div>
   )
 }
