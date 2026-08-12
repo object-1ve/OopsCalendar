@@ -310,6 +310,80 @@ body {
   overflow: hidden;
 }
 
+/* ===== 弹窗筛选 ===== */
+.modal-filters {
+  padding: 12px 18px 4px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.filter-search {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 8px 12px;
+  font-size: 13px;
+  outline: none;
+}
+
+.filter-search:focus {
+  border-color: var(--blue);
+}
+
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.filter-label {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-right: 2px;
+}
+
+.filter-btn {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 999px;
+  padding: 3px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+
+.filter-btn:hover {
+  border-color: var(--text-dim);
+  color: var(--text);
+}
+
+.filter-btn.active {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+}
+
+.filter-btn.clear {
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #fca5a5;
+}
+
+.filter-count {
+  font-size: 12px;
+  color: var(--text-dim);
+  padding-bottom: 8px;
+}
+
+.filter-hint {
+  color: var(--amber);
+}
+
 /* ===== 弹窗 ===== */
 .modal-overlay {
   position: fixed;
