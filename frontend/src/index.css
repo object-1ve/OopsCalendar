@@ -101,6 +101,15 @@ body {
   color: var(--text-dim);
 }
 
+.legend-note {
+  width: 100%;
+  font-size: 11px;
+  color: var(--text-dim);
+  opacity: 0.85;
+  padding-top: 2px;
+  border-top: 1px dashed var(--border);
+}
+
 /* ===== 徽章(chip) ===== */
 .chip {
   display: inline-flex;
@@ -281,6 +290,47 @@ body {
 .day-cell.today {
   outline: 2px solid var(--blue);
   outline-offset: -2px;
+}
+
+/* ===== 整格时段提示:顶部蓝条=有盘前,底部紫条=有盘后 ===== */
+.day-cell.session-bmo {
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.16), rgba(59, 130, 246, 0.03) 60%, transparent);
+  border-top: 3px solid var(--blue);
+}
+
+.day-cell.session-amc {
+  background: linear-gradient(270deg, rgba(168, 85, 247, 0.16), rgba(168, 85, 247, 0.03) 60%, transparent);
+  border-bottom: 3px solid var(--purple);
+}
+
+.day-cell.session-both {
+  background: linear-gradient(
+    90deg,
+    rgba(59, 130, 246, 0.16),
+    rgba(59, 130, 246, 0.02) 45%,
+    rgba(168, 85, 247, 0.02) 55%,
+    rgba(168, 85, 247, 0.16)
+  );
+  border-top: 3px solid var(--blue);
+  border-bottom: 3px solid var(--purple);
+}
+
+/* 有事件的格子 hover 时保留时段底色(叠加亮色而非覆盖) */
+.day-cell.session-bmo.has-events:hover {
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.28), rgba(59, 130, 246, 0.08) 60%, rgba(51, 65, 85, 0.5));
+}
+
+.day-cell.session-amc.has-events:hover {
+  background: linear-gradient(270deg, rgba(168, 85, 247, 0.28), rgba(168, 85, 247, 0.08) 60%, rgba(51, 65, 85, 0.5));
+}
+
+.day-cell.session-both.has-events:hover {
+  background: linear-gradient(
+    90deg,
+    rgba(59, 130, 246, 0.28),
+    rgba(51, 65, 85, 0.5) 50%,
+    rgba(168, 85, 247, 0.28)
+  );
 }
 
 .day-number {
