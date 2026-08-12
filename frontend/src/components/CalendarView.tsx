@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import type { EarningsEvent } from '../types'
+import { sortByRevenue } from '../utils'
 import EventChip from './EventChip'
 
 interface Props {
@@ -18,13 +19,16 @@ function fmt(y: number, m: number, d: number): string {
 }
 
 export default function CalendarView({ year, month, events, loading, onSelectDay }: Props) {
-  // dateStr -> events
+  // dateStr -> events(营收降序,格子显示营收最高的几家)
   const byDate = useMemo(() => {
     const map = new Map<string, EarningsEvent[]>()
     for (const e of events) {
       const list = map.get(e.date)
       if (list) list.push(e)
       else map.set(e.date, [e])
+    }
+    for (const list of map.values()) {
+      sortByRevenue(list)
     }
     return map
   }, [events])

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { EarningsEvent, Session } from '../types'
 import { fetchValuation } from '../api'
+import { sortByRevenue } from '../utils'
 import EventChip from './EventChip'
 
 interface Props {
@@ -45,8 +46,8 @@ export default function DayDetailModal({ date, events, onClose }: Props) {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return events
-      .filter((e) => {
+    return sortByRevenue(
+      events.filter((e) => {
         if (q) {
           const symbol = e.symbol.toLowerCase()
           const name = (e.name ?? '').toLowerCase()
@@ -56,16 +57,8 @@ export default function DayDetailModal({ date, events, onClose }: Props) {
         if (status === 'confirmed' && !e.confirmed) return false
         if (status === 'pending' && e.confirmed) return false
         return true
-      })
-      .sort((a, b) => {
-        // 按营收降序:已公布用实际营收,未公布用预估;无数据排最后
-        const ra = a.revenue ?? a.revenueEstimated
-        const rb = b.revenue ?? b.revenueEstimated
-        if (ra == null && rb == null) return a.symbol.localeCompare(b.symbol)
-        if (ra == null) return 1
-        if (rb == null) return -1
-        return rb - ra
-      })
+      }),
+    )
   }, [events, query, sessions, status])
 
   const toggleSession = (s: Session) => {
