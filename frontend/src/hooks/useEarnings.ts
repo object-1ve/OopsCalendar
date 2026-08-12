@@ -71,6 +71,8 @@ export function useEarnings() {
     setCache(new Map())
     setError(null)
     void load(year, month)
+    // 数据源可能已切换(如后端降级/恢复),刷新时同步更新徽章
+    fetchHealth().then(setHealth).catch(() => setHealth(null))
   }, [year, month, load])
 
   return {
