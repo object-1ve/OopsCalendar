@@ -477,6 +477,39 @@ body {
   background: rgba(15, 23, 42, 0.3);
 }
 
+/* ===== 收藏:黄色背景标识 ===== */
+.event-row.favorite {
+  background: rgba(245, 158, 11, 0.18) !important;
+  border-left: 3px solid var(--amber) !important;
+}
+
+.fav-btn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+  transition: color 0.12s, transform 0.12s;
+  flex-shrink: 0;
+}
+
+.fav-btn:hover {
+  color: var(--amber);
+  transform: scale(1.15);
+}
+
+.fav-btn.active {
+  color: var(--amber);
+}
+
+.chip.favorite {
+  background: rgba(245, 158, 11, 0.2) !important;
+  border: 1px solid var(--amber) !important;
+  color: #fde68a !important;
+}
+
 .event-main {
   display: flex;
   align-items: center;

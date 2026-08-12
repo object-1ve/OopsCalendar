@@ -23,6 +23,10 @@ export default function Legend() {
         <span className="chip demo dnh pending">盘中</span>
         <span className="legend-label">盘中 / 待定</span>
       </span>
+      <span className="legend-item">
+        <span className="chip demo favorite">★ 收藏</span>
+        <span className="legend-label">已收藏公司(黄色背景)</span>
+      </span>
     </div>
   )
 }

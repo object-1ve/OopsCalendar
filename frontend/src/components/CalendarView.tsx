@@ -8,6 +8,7 @@ interface Props {
   month: number // 0-based
   events: EarningsEvent[]
   loading: boolean
+  favorites: Set<string>
   onSelectDay: (date: string) => void
 }
 
@@ -18,7 +19,7 @@ function fmt(y: number, m: number, d: number): string {
   return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
 }
 
-export default function CalendarView({ year, month, events, loading, onSelectDay }: Props) {
+export default function CalendarView({ year, month, events, loading, favorites, onSelectDay }: Props) {
   // dateStr -> events(营收降序,格子显示营收最高的几家)
   const byDate = useMemo(() => {
     const map = new Map<string, EarningsEvent[]>()
@@ -81,7 +82,7 @@ export default function CalendarView({ year, month, events, loading, onSelectDay
               <div className="day-number">{cell.day}</div>
               <div className="day-chips">
                 {visible.map((e) => (
-                  <EventChip key={`${cell.date}-${e.symbol}`} event={e} compact />
+                  <EventChip key={`${cell.date}-${e.symbol}`} event={e} compact favorite={favorites.has(e.symbol)} />
                 ))}
                 {rest > 0 && <span className="chip more">+{rest}</span>}
               </div>

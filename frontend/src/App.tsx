@@ -3,12 +3,14 @@ import CalendarView from './components/CalendarView'
 import DayDetailModal from './components/DayDetailModal'
 import Legend from './components/Legend'
 import { useEarnings } from './hooks/useEarnings'
+import { useFavorites } from './hooks/useFavorites'
 
 const MONTH_NAMES = ['1 月', '2 月', '3 月', '4 月', '5 月', '6 月', '7 月', '8 月', '9 月', '10 月', '11 月', '12 月']
 
 export default function App() {
   const { year, month, data, loading, error, health, goPrevMonth, goNextMonth, goToday, refresh } = useEarnings()
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const { favorites, toggleFavorite } = useFavorites()
 
   const selectedEvents = useMemo(() => {
     if (!selectedDate || !data) return []
@@ -74,11 +76,18 @@ export default function App() {
         month={month}
         events={data?.events ?? []}
         loading={loading}
+        favorites={favorites}
         onSelectDay={setSelectedDate}
       />
 
       {selectedDate && (
-        <DayDetailModal date={selectedDate} events={selectedEvents} onClose={() => setSelectedDate(null)} />
+        <DayDetailModal
+          date={selectedDate}
+          events={selectedEvents}
+          favorites={favorites}
+          onToggleFavorite={toggleFavorite}
+          onClose={() => setSelectedDate(null)}
+        />
       )}
     </div>
   )

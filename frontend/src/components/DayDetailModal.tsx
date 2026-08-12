@@ -7,6 +7,8 @@ import EventChip from './EventChip'
 interface Props {
   date: string // YYYY-MM-DD
   events: EarningsEvent[]
+  favorites: Set<string>
+  onToggleFavorite: (symbol: string) => void
   onClose: () => void
 }
 
@@ -27,7 +29,7 @@ const STATUS_OPTIONS: { value: 'all' | 'confirmed' | 'pending'; label: string }[
 ]
 
 /** 点击日期后弹出的当日财报详情,支持搜索/时段/公布状态筛选。 */
-export default function DayDetailModal({ date, events, onClose }: Props) {
+export default function DayDetailModal({ date, events, favorites, onToggleFavorite, onClose }: Props) {
   const [, m, d] = date.split('-')
   const [query, setQuery] = useState('')
   const [sessions, setSessions] = useState<Set<Session>>(new Set())
@@ -130,46 +132,56 @@ export default function DayDetailModal({ date, events, onClose }: Props) {
 
         <div className="modal-body">
           {filtered.length === 0 && <p className="empty">无匹配的财报。</p>}
-          {filtered.slice(0, hidden ? MAX_RENDER : filtered.length).map((e) => (
-            <div
-              key={`${e.date}-${e.symbol}`}
-              className={`event-row session-${e.session.toLowerCase()}`}
-            >
-              <div className="event-main">
-                <div className="event-company">
-                  <span className="event-name">{e.nameZh ?? e.name ?? e.symbol}</span>
-                  {e.industry && <span className="industry-tag">{e.industry}</span>}
-                </div>
-                <span className="event-symbol">{e.symbol}</span>
-                <EventChip event={e} />
-                {peMap[e.symbol] != null && (
-                  <span className="pe-tag" title="市盈率 PE(TTM)">
-                    PE {peMap[e.symbol].toFixed(1)}
+          {filtered.slice(0, hidden ? MAX_RENDER : filtered.length).map((e) => {
+            const fav = favorites.has(e.symbol)
+            return (
+              <div
+                key={`${e.date}-${e.symbol}`}
+                className={`event-row session-${e.session.toLowerCase()}${fav ? ' favorite' : ''}`}
+              >
+                <div className="event-main">
+                  <button
+                    className={`fav-btn ${fav ? 'active' : ''}`}
+                    onClick={() => onToggleFavorite(e.symbol)}
+                    title={fav ? '取消收藏' : '收藏该公司,财报用黄色标识'}
+                  >
+                    {fav ? '★' : '☆'}
+                  </button>
+                  <div className="event-company">
+                    <span className="event-name">{e.nameZh ?? e.name ?? e.symbol}</span>
+                    {e.industry && <span className="industry-tag">{e.industry}</span>}
+                  </div>
+                  <span className="event-symbol">{e.symbol}</span>
+                  <EventChip event={e} favorite={fav} />
+                  {peMap[e.symbol] != null && (
+                    <span className="pe-tag" title="市盈率 PE(TTM)">
+                      PE {peMap[e.symbol].toFixed(1)}
+                    </span>
+                  )}
+                  <span className={`status-badge ${e.confirmed ? 'done' : 'todo'}`}>
+                    {e.confirmed ? '✓ 已公布' : '未公布'}
                   </span>
-                )}
-                <span className={`status-badge ${e.confirmed ? 'done' : 'todo'}`}>
-                  {e.confirmed ? '✓ 已公布' : '未公布'}
-                </span>
+                </div>
+                <div className="event-detail">
+                  <span>
+                    EPS 实际 <b>{e.eps ?? '—'}</b> / 预估 <b>{e.epsEstimated ?? '—'}</b>
+                  </span>
+                  <span>
+                    营收(百万$)实际 <b>{e.revenue?.toLocaleString() ?? '—'}</b> / 预估{' '}
+                    <b>{e.revenueEstimated?.toLocaleString() ?? '—'}</b>
+                  </span>
+                  <span className="source-tag">
+                    数据源:
+                    {e.source === 'fmp'
+                      ? 'FMP 真实数据'
+                      : e.source === 'finnhub'
+                        ? 'Finnhub 真实数据'
+                        : '演示数据'}
+                  </span>
+                </div>
               </div>
-              <div className="event-detail">
-                <span>
-                  EPS 实际 <b>{e.eps ?? '—'}</b> / 预估 <b>{e.epsEstimated ?? '—'}</b>
-                </span>
-                <span>
-                  营收(百万$)实际 <b>{e.revenue?.toLocaleString() ?? '—'}</b> / 预估{' '}
-                  <b>{e.revenueEstimated?.toLocaleString() ?? '—'}</b>
-                </span>
-                <span className="source-tag">
-                  数据源:
-                  {e.source === 'fmp'
-                    ? 'FMP 真实数据'
-                    : e.source === 'finnhub'
-                      ? 'Finnhub 真实数据'
-                      : '演示数据'}
-                </span>
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
     </div>
