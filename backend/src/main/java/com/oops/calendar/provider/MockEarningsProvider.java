@@ -26,7 +26,7 @@ public class MockEarningsProvider implements EarningsProvider {
             "AAPL", "MSFT", "GOOGL", "AMZN", "META", "NVDA", "TSLA", "NFLX",
             "JPM", "V", "UNH", "XOM", "WMT", "JNJ", "PG", "KO", "DIS", "CRM",
             "ORCL", "AMD", "INTC", "QCOM", "ADBE", "PYPL", "BA", "GE", "PFE",
-            "T", "CSCO", "CMCSA"
+            "T", "CSCO", "CMCSA", "NBIS", "CBRS"
     };
 
     static final String[] NAMES = {
@@ -38,7 +38,7 @@ public class MockEarningsProvider implements EarningsProvider {
             "Salesforce Inc.", "Oracle Corp.", "Advanced Micro Devices Inc.",
             "Intel Corp.", "Qualcomm Inc.", "Adobe Inc.", "PayPal Holdings Inc.",
             "Boeing Co.", "GE Aerospace", "Pfizer Inc.", "AT&T Inc.",
-            "Cisco Systems Inc.", "Comcast Corp."
+            "Cisco Systems Inc.", "Comcast Corp.", "Nebius Group N.V.", "Cerebras Systems Inc."
     };
 
     @Override
