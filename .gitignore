@@ -1,0 +1,18 @@
+# Java / Maven
+backend/target/
+*.class
+*.log
+
+# Node / pnpm / Vite
+frontend/node_modules/
+frontend/dist/
+frontend/*.local
+
+# 临时文件
+*.tmp
+*.sample.json
+
+# IDE
+.idea/
+.vscode/
+*.iml
