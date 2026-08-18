@@ -1,18 +1,40 @@
-# Java / Maven
-backend/target/
-*.class
-*.log
+# ===== 系统与编辑器 =====
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
 
-# Node / pnpm / Vite
+# ===== 日志 / 运行时 =====
+*.log
+*.tmp
+*.sample.json
+
+# ===== Python 后端 =====
+backend/.venv/
+backend/__pycache__/
+**/__pycache__/
+*.pyc
+backend/data/
+backend/.env.local
+backend/*.local
+# 后端临时/探测脚本(不进版本库)
+backend/_*.py
+backend/_*.txt
+backend/app_render.png
+
+# ===== Node / pnpm / Vite 前端 =====
 frontend/node_modules/
 frontend/dist/
 frontend/*.local
 
-# 临时文件
-*.tmp
-*.sample.json
+# ===== 本地持久化 API Key(不提交) =====
+.env.local
+*.local
 
-# IDE
-.idea/
-.vscode/
-*.iml
+# ===== 运行时数据(快讯/收藏/财报缓存) =====
+data/
+backend/data/

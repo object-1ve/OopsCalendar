@@ -1,0 +1,15 @@
+# Python / venv
+.venv/
+__pycache__/
+*.pyc
+
+# 运行时数据(用户数据与缓存)
+data/*.db
+data/*.db-wal
+data/*.db-shm
+
+# API Key(每行 KEY=VALUE,请勿提交)
+.env.local
+
+# 日志
+*.log

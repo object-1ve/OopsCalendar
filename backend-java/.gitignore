@@ -1,0 +1,14 @@
+# Java / Maven 构建产物
+target/
+*.class
+
+# 运行时数据(参考实现,不提交)
+data/
+*.log
+*.db
+*.db-wal
+*.db-shm
+
+# IDE
+.idea/
+*.iml

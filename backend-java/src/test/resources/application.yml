@@ -1,0 +1,18 @@
+# 测试专用配置:关闭后台新闻轮询,避免单测期间请求上游。
+news:
+  enabled: false
+
+# 测试使用内存 H2,避免触碰/锁住真实文件库 backend/data/earnings.mv.db
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect

@@ -45,3 +45,49 @@ export const SESSION_LABEL: Record<Session, string> = {
   DNH: '盘中',
   UNKNOWN: '待定',
 }
+
+/** 一条财经快讯 */
+export interface NewsItem {
+  id: string
+  title: string
+  url: string
+  /** 发布时间 epoch 毫秒;未知为 null */
+  pubDate: number | null
+  /** 数据源 key,如 jin10 / cls */
+  source: string
+  /** 数据源展示名 */
+  sourceName: string
+  summary: string | null
+  important: boolean
+}
+
+/** 新闻数据源元信息 */
+export interface NewsSourceMeta {
+  key: string
+  name: string
+  icon: string | null
+}
+
+export interface NewsResponse {
+  items: NewsItem[]
+  sources: NewsSourceMeta[]
+  fetchedAt: number
+}
+
+/** 数据源偏好(configured=false = 从未保存过,默认全开;全项目共享一份) */
+export interface NewsPreferences {
+  configured: boolean
+  sources: string[]
+}
+
+/** 收藏公司响应(configured=false = 从未保存过收藏;全项目共享一份) */
+export interface FavoritesResponse {
+  configured: boolean
+  symbols: string[]
+}
+
+/** 快讯收藏响应(configured=false = 从未收藏过快讯;items 按收藏时间倒序;全项目共享一份) */
+export interface NewsFavoritesResponse {
+  configured: boolean
+  items: NewsItem[]
+}

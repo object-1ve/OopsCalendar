@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { EarningsEvent, Session } from '../types'
 import { fetchValuation } from '../api'
-import { sortByRevenue } from '../utils'
+import { sortByRevenue, isRevenueEstimateSuspicious } from '../utils'
 import EventChip from './EventChip'
 
 interface Props {
@@ -9,6 +9,8 @@ interface Props {
   events: EarningsEvent[]
   favorites: Set<string>
   onToggleFavorite: (symbol: string) => void
+  /** 单独刷新该日(refresh=true 绕过缓存),返回是否成功。 */
+  onRefreshDay: (date: string) => Promise<boolean>
   onClose: () => void
 }
 
@@ -29,12 +31,14 @@ const STATUS_OPTIONS: { value: 'all' | 'confirmed' | 'pending'; label: string }[
 ]
 
 /** 点击日期后弹出的当日财报详情,支持搜索/时段/公布状态筛选。 */
-export default function DayDetailModal({ date, events, favorites, onToggleFavorite, onClose }: Props) {
+export default function DayDetailModal({ date, events, favorites, onToggleFavorite, onRefreshDay, onClose }: Props) {
   const [, m, d] = date.split('-')
   const [query, setQuery] = useState('')
   const [sessions, setSessions] = useState<Set<Session>>(new Set())
   const [status, setStatus] = useState<'all' | 'confirmed' | 'pending'>('all')
   const [peMap, setPeMap] = useState<Record<string, number>>({})
+  const [refreshing, setRefreshing] = useState(false)
+  const [refreshError, setRefreshError] = useState<string | null>(null)
 
   // 打开弹窗时加载当日知名公司的市盈率
   useEffect(() => {
@@ -46,9 +50,17 @@ export default function DayDetailModal({ date, events, favorites, onToggleFavori
     return () => controller.abort()
   }, [date])
 
+  const handleRefreshDay = async () => {
+    setRefreshing(true)
+    setRefreshError(null)
+    const ok = await onRefreshDay(date)
+    setRefreshing(false)
+    if (!ok) setRefreshError('刷新失败,请稍后重试')
+  }
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return sortByRevenue(
+    const list = sortByRevenue(
       events.filter((e) => {
         if (q) {
           const symbol = e.symbol.toLowerCase()
@@ -61,7 +73,10 @@ export default function DayDetailModal({ date, events, favorites, onToggleFavori
         return true
       }),
     )
-  }, [events, query, sessions, status])
+    // 收藏的公司置顶(同组内保持营收顺序,Array.sort 稳定)
+    list.sort((a, b) => Number(favorites.has(b.symbol)) - Number(favorites.has(a.symbol)))
+    return list
+  }, [events, query, sessions, status, favorites])
 
   const toggleSession = (s: Session) => {
     setSessions((prev) => {
@@ -82,9 +97,20 @@ export default function DayDetailModal({ date, events, favorites, onToggleFavori
           <h2>
             {Number(m)} 月 {Number(d)} 日财报 <span className="modal-count">(共 {events.length} 家)</span>
           </h2>
-          <button className="modal-close" onClick={onClose} aria-label="关闭">
-            ×
-          </button>
+          <div className="modal-actions">
+            {refreshError && <span className="refresh-error">{refreshError}</span>}
+            <button
+              className="btn small"
+              onClick={handleRefreshDay}
+              disabled={refreshing}
+              title="重新拉取该日财报(绕过后端缓存)"
+            >
+              {refreshing ? '刷新中…' : '↻ 刷新该日'}
+            </button>
+            <button className="modal-close" onClick={onClose} aria-label="关闭">
+              ×
+            </button>
+          </div>
         </div>
 
         <div className="modal-filters">
@@ -100,7 +126,7 @@ export default function DayDetailModal({ date, events, favorites, onToggleFavori
             {SESSION_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
-                className={`filter-btn ${sessions.has(opt.value) ? 'active' : ''}`}
+                className={`filter-btn session-${opt.value.toLowerCase()} ${sessions.has(opt.value) ? 'active' : ''}`}
                 onClick={() => toggleSession(opt.value)}
               >
                 {opt.label}
@@ -168,7 +194,19 @@ export default function DayDetailModal({ date, events, favorites, onToggleFavori
                   </span>
                   <span>
                     营收(百万$)实际 <b>{e.revenue?.toLocaleString() ?? '—'}</b> / 预估{' '}
-                    <b>{e.revenueEstimated?.toLocaleString() ?? '—'}</b>
+                    {e.revenueEstimated != null && !isRevenueEstimateSuspicious(e) ? (
+                      <b>{e.revenueEstimated.toLocaleString()}</b>
+                    ) : (
+                      '—'
+                    )}
+                    {isRevenueEstimateSuspicious(e) && (
+                      <span
+                        className="warn-tag"
+                        title={`实际与预估差距超 5 倍(实际 ${e.revenue?.toLocaleString() ?? '—'}M / 预估 ${e.revenueEstimated?.toLocaleString() ?? '—'}M),两者大概率不是同一营收口径。如 BN 这类控股集团,分析师营收预期只覆盖资管费+净投资收益,不含并表运营业务,故预估不作对比展示。`}
+                      >
+                        口径存疑
+                      </span>
+                    )}
                   </span>
                   <span className="source-tag">
                     数据源:

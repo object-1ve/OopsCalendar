@@ -5,39 +5,60 @@
 前后端分离的美股财报日历 Web 应用:
 
 - **前端**: React 19 + Vite 8 + TypeScript + pnpm
-- **后端**: Java 8 + Spring Boot 2.7 (Maven)
-- **数据源**: Financial Modeling Prep (FMP) 财报日历;未配置 key 时自动使用内置演示数据(mock),开箱可演示
+- **后端**: Python 3 + FastAPI + uvicorn
+- **数据源**:
+  - 财报日历:Finnhub(优先)/ Financial Modeling Prep (FMP),未配置 key 时自动使用内置演示数据(mock),开箱可演示
+  - 财经快讯(⚡ 快讯):金十数据 / 财联社 / 华尔街见闻 / 东方财富 / 同花顺 / 雪球 / 格隆汇 / 通达信,均为公开接口,无需 key
 
-核心功能:按月查看美股财报日期,清晰区分 **盘前 (BMO) / 盘后 (AMC) / 盘中 (DNH)**,并标注**已公布 / 未公布**状态。
+核心功能:
+- 按月查看美股财报日期,清晰区分 **盘前 (BMO) / 盘后 (AMC) / 盘中 (DNH)**,并标注**已公布 / 未公布**状态。
+- **URL 路由**:日历与快讯使用不同地址 —— `/`(或 `/calendar`)为财报日历,`/news` 为财经快讯;顶部「📅 日历 / ⚡ 快讯」切换,支持浏览器前进/后退与直接访问。
+- **财经快讯**页聚合 8 个中文财经平台的实时快讯(金十、财联社、华尔街见闻、东方财富 7x24、同花顺、雪球热股、格隆汇公告、通达信资讯),按时间倒序合并,支持按源筛选与 60s 自动刷新。
+- **收藏公司**:财报详情里点 ☆ 即可收藏(黄色标识),全项目共享一份,持久化到服务端(`backend/data/favorites.json`),同时缓存浏览器本地;换端口 / 清缓存 / 重启都不丢。
+- **收藏快讯**:快讯页每条快讯右侧点 ☆ 即可收藏,「★ 收藏」页签集中查看;收藏时保存整条快讯快照并持久化到 SQLite(`backend/data/earnings.db`,全项目共享一份),即使快讯已从实时流滚动淘汰仍可完整展示,重启不丢。
 
 ## 项目结构
 
 ```
 app/
-├── backend/            # Spring Boot 后端 (端口 8080)
-│   ├── src/main/java/com/oops/calendar/
-│   │   ├── config/     # FMP 配置、CORS
-│   │   ├── dto/        # EarningsEvent / Session / 响应体
-│   │   ├── provider/   # FmpEarningsProvider(真实) / MockEarningsProvider(演示)
-│   │   ├── service/    # 校验、缓存、节流
-│   │   └── web/        # REST 控制器 + 全局异常处理
-│   └── src/test/       # 41 个单元/接口测试
-└── frontend/           # React + Vite 前端 (端口 5173)
+├── backend/            # Python 后端 (FastAPI + uvicorn, 端口 8080)
+│   ├── main.py         # 入口(uvicorn)
+│   ├── config.py       # 配置(.env.local / 环境变量)
+│   ├── app/
+│   │   ├── earnings/   # 财报:FMP / Finnhub / Mock + 服务(缓存/降级/节流)
+│   │   ├── news/       # 财经快讯:7 个数据源 + 聚合 + SSE(含财联社签名)
+│   │   ├── db.py       # SQLite 持久化(财报二级缓存/快讯偏好/快讯收藏)
+│   │   ├── favorites.py / valuation.py / known_companies.py
+│   │   └── web.py      # FastAPI 路由 + CORS + 全局异常处理
+│   └── data/           # SQLite(earnings.db)+ favorites.json
+├── backend-java/       # 旧版 Java(Spring Boot)后端,保留作参考,不再运行
+└── frontend/           # React + Vite 前端 (端口 5174)
     └── src/
         ├── api.ts              # /api 封装(经 vite 代理)
         ├── hooks/useEarnings.ts # 按月缓存 + 月份导航
-        └── components/          # 日历网格 / 徽章 / 图例 / 详情弹窗
+        ├── components/          # 日历网格 / 徽章 / 图例 / 详情弹窗 / 快讯列表
+        └── public/icons/        # 快讯源图标(金十/财联社/华尔街见闻/雪球/格隆汇)
 ```
 
 ## 快速开始
 
-环境要求:JDK 8+, Maven 3.6+, Node 18+, pnpm 8+
+环境要求:Python 3.10+, Node 18+, pnpm 8+
+
+### 0. 一键启动(推荐)
+
+双击 `start-all.cmd`,会自动:
+
+1. 在独立窗口启动**后端**(`start-backend.cmd`,Python FastAPI,端口 8080);
+2. 在独立窗口启动**前端**(`start-frontend.cmd`,Vite dev server,端口 5174);
+3. 等前端就绪后自动打开浏览器 `http://localhost:5174`。
+
+停止服务:直接关闭对应的「OopsCalendar-Backend / Frontend」窗口即可。两个启动脚本都内置端口占用检测:端口被占用时会给出中文提示并退出,不会裸堆栈。
 
 ### 1. 启动后端
 
 ```bash
 cd backend
-mvn spring-boot:run        # 或 mvn package 后 java -jar target/earnings-calendar.jar
+run-backend.cmd            # 或 .venv\Scripts\python main.py(首次自动建 venv 并装依赖)
 ```
 
 健康检查: <http://localhost:8080/api/health>
@@ -47,7 +68,7 @@ mvn spring-boot:run        # 或 mvn package 后 java -jar target/earnings-calen
 ```bash
 cd frontend
 pnpm install
-pnpm dev                   # http://localhost:5173
+pnpm dev                   # http://localhost:5174
 ```
 
 > 提示:若 `pnpm dev` 在你的环境下无法拉起长驻进程(子进程被回收),可直接运行
@@ -65,6 +86,16 @@ pnpm dev                   # http://localhost:5173
 # Windows (PowerShell)
 $env:FINNHUB_API_KEY="你的key"; mvn spring-boot:run
 ```
+
+**持久化保存 key(推荐)**:把 key 写入 `backend/.env.local`(每行 `KEY=VALUE`,`#` 开头为注释),`start-backend.cmd` 会自动加载,重启后无需再手动设置环境变量。该文件已被 `.gitignore` 忽略,不会提交到版本库。例如:
+
+```bash
+# backend/.env.local
+FINNHUB_API_KEY=你的finnhub_key
+FMP_API_KEY=你的fmp_key   # 可选,同时配置时优先使用 Finnhub
+```
+
+> 也可用 `setx FINNHUB_API_KEY "你的key"` 写入 Windows 用户环境变量(全局生效,但需新开终端)。
 
 **FMP**(免费注册 <https://site.financialmodelingprep.com>,免费档日历数据较稀疏):
 
@@ -93,8 +124,7 @@ $env:FMP_API_KEY="你的key"; mvn spring-boot:run
 ```bash
 # 1. 后端:打 jar 并启动(监听 8080)
 cd backend
-mvn package                       # 产物: backend/target/earnings-calendar.jar
-java -jar target/earnings-calendar.jar
+run-backend.cmd                   # 直接启动(监听 8080),无编译步骤
 
 # 2. 前端:构建静态产物并本地预览(监听 4173)
 cd frontend
@@ -116,11 +146,15 @@ pnpm preview                      # 本地验证生产构建: http://127.0.0.1:4
       location /api/ {
         proxy_pass http://127.0.0.1:8080;
       }
+      # 前端 history 路由(/)与(/news):未命中静态文件时回退到 index.html
+      location / {
+        try_files $uri $uri/ /index.html;
+      }
     }
     ```
 
-  - 或直接复用本地预览:后端 `java -jar target/earnings-calendar.jar` + 前端 `pnpm preview`。
-- **端口一览**:后端 8080、前端开发 `pnpm dev` 5173、生产预览 `pnpm preview` 4173、示例静态站点 80。端口被占用时按"常见问题"排查。
+  - 或直接复用本地预览:后端 `run-backend.cmd` + 前端 `pnpm preview`。
+- **端口一览**:后端 8080、前端开发 `pnpm dev` 5174、生产预览 `pnpm preview` 4173、示例静态站点 80。端口被占用时按"常见问题"排查。
 
 ## 配色与状态说明
 
@@ -139,8 +173,15 @@ pnpm preview                      # 本地验证生产构建: http://127.0.0.1:4
 | 接口 | 说明 |
 | --- | --- |
 | `GET /api/health` | 服务状态与当前数据源(fmp/mock) |
-| `GET /api/earnings?from=YYYY-MM-DD&to=YYYY-MM-DD` | 区间财报日历(≤120 天),按日期升序 |
+| `GET /api/earnings?from=YYYY-MM-DD&to=YYYY-MM-DD[&refresh=true]` | 区间财报日历(≤120 天),按日期升序;`refresh=true` 绕过缓存强制拉取上游(用于"单独刷新某一天") |
 | `GET /api/earnings/{symbol}?from=&to=` | 单只股票财报(默认今天前后各 30 天) |
+| `GET /api/news?sources=jin10,cls` | 财经快讯(缺省 = 全部 8 个源),按时间倒序 |
+| `GET /api/news/sources` | 可用快讯数据源列表 |
+| `GET /api/news/stream` | SSE 实时推送:后端每 15s 增量轮询,只推新增条目 |
+| `GET /api/news/preferences` | 读取数据源偏好(全项目共享一份) |
+| `PUT /api/news/preferences` | 保存数据源偏好(`{sources}`),持久化到 SQLite 数据库 |
+| `GET /api/news/favorites` | 读取快讯收藏(整条快讯快照,按收藏时间倒序;未收藏过返回 `configured:false`) |
+| `PUT /api/news/favorites` | 保存快讯收藏(`{items}`),快照持久化到 SQLite 数据库(空列表 = 清空) |
 
 返回示例:
 
@@ -160,19 +201,51 @@ pnpm preview                      # 本地验证生产构建: http://127.0.0.1:4
 - `confirmed`: `true` = 已公布(实际 EPS/营收已发布),`false` = 未公布
 - 错误统一返回 `{"error","message","timestamp"}`,参数非法为 400
 
+## 财经快讯(⚡ 快讯)
+
+点击页头「⚡ 快讯」进入快讯页,聚合 8 个中文财经平台的最新消息,按时间倒序合并展示:
+
+| key | 平台 | 内容 | 实现 |
+| --- | --- | --- | --- |
+| `jin10` | 金十数据 | 7x24 快讯(含重要 ★) | JSON(`flash_newest.js`) |
+| `cls` | 财联社 | 电报(telegraph) | JSON + MD5(SHA1) 签名,参考 RSSHub |
+| `wallstreetcn` | 华尔街见闻 | 7x24 快讯 | JSON |
+| `eastmoney` | 东方财富 | 7x24 快讯 | JSON(微秒时间戳已转毫秒) |
+| `tonghuashun` | 同花顺 | 股票/财经快讯 | JSON(`news.10jqka.com.cn`) |
+| `xueqiu` | 雪球 | 热股榜(现价/涨跌幅) | JSON(先取 cookie) |
+| `gelonghui` | 格隆汇 | A股/港股公告摘要 | HTML 解析(jsoup) |
+| `tdx` | 通达信 | 资讯中心聚合快讯 | JSON(TQL 协议,POST 取数) |
+
+要点:
+
+- 前端支持按源筛选、**SSE 实时推送**(页面显示「● 实时」,新快讯约 15 秒内自动到达,无需刷新;断线由浏览器 EventSource 自动重连)、来源图标/色标、相对时间(刚刚 / X 分钟前 / X 小时前)。
+- **数据源配置持久化(后端数据库)**:数据源开关以服务端 SQLite 数据库为准(`news_preference` 表,全项目共享一份),每次勾选即写入数据库,换浏览器/换设备/清缓存 / 重启都能恢复。浏览器 localStorage 仅作为后端不可达时的回退缓存,不再作为权威存储;首次升级启动时后端会自动把旧的按 clientId 分组的 `news-preferences.json` 合并导入数据库,之后不再读写该文件。
+- **收藏持久化(服务端)**:收藏公司同样存到 `backend/data/favorites.json`(全项目共享一份,本地 localStorage 即时生效,服务端兜底),重启 / 清缓存 / 换端口都能恢复;服务端有存档时以服务端为准,删除操作也能跨会话同步。
+- **收藏快讯**:每条快讯右侧点 ☆ 收藏 / 取消收藏,顶部「★ 收藏」页签集中查看(最近收藏的在前)。收藏持久化到 SQLite(`news_favorite` 表,快照保存标题/链接/摘要/来源/时间,全项目共享一份),本地 localStorage 即时生效、服务端兜底;服务端有存档时以服务端为准。由于保存的是完整快照,即使快讯已从实时流(上限 200 条)滚动淘汰,收藏列表仍能正常展示和打开原文。
+- 实时实现:后端 `NewsStreamService` 每 15 秒(`news.poll-ms`)增量轮询各源,仅向 `/api/news/stream` 订阅者推送新增条目;`/api/news` 仍保留按源缓存(默认 60 秒)供初次加载。
+- **限流**:上游均为公开接口,无 key、无配额;后端缓存全局共享,轮询每源仅 4 次/分钟(合计 32 次/分钟),远低于风控阈值。
+- 后端按源缓存(默认 60 秒,`news.cache-ttl-seconds`),单源失败自动降级不影响其他源;合并后默认最多返回 200 条(`news.max-items`)。
+- **快讯落库(去重)**:每次抓取到的快讯按 `item_id` 去重写入 SQLite(`news_item` 表),默认保留 30 天(`NEWS_RETENTION_DAYS` 可调);某数据源上游失败时,自动用库内该源的最近快讯兜底,列表不会骤然变空。
+- **前端搜索与无限滚动**:快讯页支持按标题 / 摘要 / 来源关键词搜索(实时过滤),列表底部自动加载更多,滚动即可翻页。
+- 实现新源:在 `app/news/sources.py` 实现一个 source 类并加入 `all_sources()` 即可,无需改路由。
+- 快讯接口全部为公开接口,无需 API Key;若个别上游被风控,该源会短暂降级并自动恢复。
+- 生产部署若用 Nginx 反代,SSE 需关闭缓冲:`proxy_buffering off;`(否则实时推送会被缓冲延迟)。
+- 测试环境默认关闭轮询(`src/test/resources/application.yml` 中 `news.enabled: false`)。
+
 ## 数据说明与限流
 
 - 免费 FMP 档位 250 次请求/天。后端已内置保护:
   - 按 `(from, to)` 内存缓存(默认 TTL 1 小时)
   - 上游调用最小间隔 1.5s
   - 单次查询区间上限 120 天
+- **Finnhub 单次最多返回 1500 条**:整月拉取会被截断(丢最旧,如 8 月上旬缺失)。后端已自动按 3 天窗口并行分段拉取再合并,保证整月完整;窗口仍达上限时按天补查。
 - 营收单位为百万美元(随数据源口径,展示时带单位)。
 - 已公布判定:`eps` 或 `revenue` 任一非空即视为已公布。
 - mock 模式数据为确定性生成:工作日 2-5 条/天,盘前 45% / 盘后 50% / 盘中 5%,约 30% 已公布,同一天内代码不重复。
 
 ## 常见问题
 
-- **端口被占用(8080/5173/4173 已被占用)**:先确认是否已有本项目的后端/前端在运行,是则无需重复启动。排查:`netstat -ano | findstr :8080`(换成实际端口)查看占用进程的 PID,再用 `taskkill /PID <PID> /F` 结束;或改用隔离端口(后端 `java -jar target/earnings-calendar.jar --server.port=8081`,前端 `pnpm dev --port 5174`,并同步调整代理/反代目标)。`start-backend.cmd` 与 `start-frontend.cmd` 已内置端口占用检测:被占用时会打印中文提示并直接退出,不会出现裸堆栈。
-- **前端打不开**:确认后端已在 8080 启动;若浏览器报连接失败,用 `http://127.0.0.1:5173` 访问(Windows 上 localhost 解析 IPv6 时 vite 默认绑定 `127.0.0.1`)。
-- **想换数据源**:实现 `EarningsProvider` 接口并替换 `EarningsService` 中的装配即可,前端契约无需改动。
+- **端口被占用(8080/5174/4173 已被占用)**:先确认是否已有本项目的后端/前端在运行,是则无需重复启动。排查:`netstat -ano | findstr :8080`(换成实际端口)查看占用进程的 PID,再用 `taskkill /PID <PID> /F` 结束;或改用隔离端口(后端 `java -jar target/earnings-calendar.jar --server.port=8081`,前端 `pnpm dev --port 5174`,并同步调整代理/反代目标)。`start-backend.cmd` 与 `start-frontend.cmd` 已内置端口占用检测:被占用时会打印中文提示并直接退出,不会出现裸堆栈。
+- **前端打不开**:确认后端已在 8080 启动;若浏览器报连接失败,用 `http://127.0.0.1:5174` 访问(Windows 上 localhost 解析 IPv6 时 vite 默认绑定 `127.0.0.1`)。
+- **想换数据源**:在 `app/earnings/providers.py` 新增 Provider 并调整 `EarningsService` 的数据源优先级即可,前端契约无需改动。
 - **FMP API Key 无效或上游故障**:后端会自动降级到演示数据(mock),`/api/health` 会如实说明“FMP 上游请求失败(...),已回退到内置演示数据”,前端徽章显示“演示数据”并在 tooltip 中给出原因;日志只输出简短摘要,不会泄露 FMP 原始错误体。检查 `FMP_API_KEY` 是否正确、网络是否可达,修复后无需重启(冷却期 60 秒后自动重试恢复),详见上文“FMP 上游故障时的自动降级”。

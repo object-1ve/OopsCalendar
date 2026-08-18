@@ -20,7 +20,7 @@ function fmt(y: number, m: number, d: number): string {
 }
 
 export default function CalendarView({ year, month, events, loading, favorites, onSelectDay }: Props) {
-  // dateStr -> events(营收降序,格子显示营收最高的几家)
+  // dateStr -> events(营收降序,收藏的置顶,格子显示靠前的几家)
   const byDate = useMemo(() => {
     const map = new Map<string, EarningsEvent[]>()
     for (const e of events) {
@@ -30,9 +30,11 @@ export default function CalendarView({ year, month, events, loading, favorites, 
     }
     for (const list of map.values()) {
       sortByRevenue(list)
+      // 收藏的公司排前面(同组内保持营收顺序,Array.sort 稳定)
+      list.sort((a, b) => Number(favorites.has(b.symbol)) - Number(favorites.has(a.symbol)))
     }
     return map
-  }, [events])
+  }, [events, favorites])
 
   // 生成 6x7 网格
   const cells = useMemo(() => {
