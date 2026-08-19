@@ -1,0 +1,14 @@
+.venv
+__pycache__
+**/__pycache__
+*.pyc
+.pytest_cache
+data
+.env.local
+*.local
+*.log
+*.png
+_*.py
+_*.txt
+tests
+.pytest_cache

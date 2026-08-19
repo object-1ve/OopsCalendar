@@ -32,6 +32,7 @@ frontend/dist/
 frontend/*.local
 
 # ===== 本地持久化 API Key(不提交) =====
+.env
 .env.local
 *.local
 

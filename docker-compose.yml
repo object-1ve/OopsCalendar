@@ -1,0 +1,57 @@
+# OopsCalendar 生产编排:Nginx(80) + FastAPI(内网 8080)
+# 用法见 README「Docker 部署」
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        DOCKER_HUB: ${DOCKER_HUB:-docker.m.daocloud.io}
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}
+    image: ${BACKEND_IMAGE:-oops-calendar-backend:latest}
+    container_name: oops-calendar-backend
+    restart: unless-stopped
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "8080"
+      NEWS_DATA_DIR: /app/data
+      TZ: ${TZ:-Asia/Shanghai}
+      FINNHUB_API_KEY: ${FINNHUB_API_KEY:-}
+      FMP_API_KEY: ${FMP_API_KEY:-}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost,http://127.0.0.1}
+    volumes:
+      - calendar_data:/app/data
+    expose:
+      - "8080"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/api/health', timeout=4)",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  web:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        DOCKER_HUB: ${DOCKER_HUB:-docker.m.daocloud.io}
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com}
+    image: ${WEB_IMAGE:-oops-calendar-web:latest}
+    container_name: oops-calendar-web
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  calendar_data:
+    name: oops_calendar_data

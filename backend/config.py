@@ -93,3 +93,5 @@ class CorsConfig:
 
 # 服务端口:uvicorn 默认 8080,也可用 PORT 覆盖(与旧版 --server.port 语义一致)
 PORT = _env_int("PORT", 8080)
+# 监听地址:本地默认回环;Docker/服务器部署设 HOST=0.0.0.0
+HOST = _env("HOST", "127.0.0.1") or "127.0.0.1"

@@ -8,7 +8,7 @@ FastAPI + uvicorn 实现的美股财报日历后端,API 契约与旧版 Java (Sp
 cd backend
 python -m venv .venv                # 首次
 .venv\Scripts\pip install -r requirements.txt   # 首次
-.venv\Scripts\python main.py        # 监听 127.0.0.1:8080
+.venv\Scripts\python main.py        # 监听 127.0.0.1:8080(可用 HOST/PORT 覆盖)
 ```
 
 或直接双击/调用 `..\start-backend.cmd`(自动建 venv、装依赖、检测端口)。

@@ -119,10 +119,123 @@ $env:FMP_API_KEY="你的key"; mvn spring-boot:run
 
 > 提示:免费 FMP 档位 250 次/天,启动探测每次重启消耗 1 次;若网络完全不可达,启动最多额外等待连接超时时间(默认 8 秒)。
 
-## 生产构建/部署
+## Docker 部署(推荐上服务器)
+
+浏览器只访问 **80 端口**。推荐在本机构建镜像后传到服务器运行,服务器不需要源码、也不需要 `docker compose build`。
+
+### 1. 服务器准备
+
+- Linux(推荐 Ubuntu 22.04+)+ Docker Engine + Compose v2
+- 安全组放行 **80** 与 SSH
 
 ```bash
-# 1. 后端:打 jar 并启动(监听 8080)
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER   # 重新登录后生效
+```
+
+### 2. 本机构建镜像并导出(推荐)
+
+在 `app/` 目录:
+
+```powershell
+cd C:\object1ve\OopsCalendar\app
+cp .env.example .env   # 已有 .env 可跳过
+docker compose build
+docker save oops-calendar-backend:latest oops-calendar-web:latest -o oops-calendar-images.tar
+```
+
+传到服务器(只需这三样:`images.tar`、`docker-compose.prod.yml`、`.env`):
+
+```powershell
+scp oops-calendar-images.tar docker-compose.prod.yml .env user@服务器IP:~/oops-calendar/
+```
+
+### 3. 服务器加载镜像并启动
+
+```bash
+cd ~/oops-calendar
+docker load -i oops-calendar-images.tar
+docker compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml ps
+curl http://127.0.0.1/api/health
+```
+
+浏览器打开 `http://<服务器公网IP>/`。
+
+80 被占用时改 `.env` 的 `HTTP_PORT=8088`,安全组同步放行。
+
+更新:本机重新 `build` + `save`,服务器再 `docker load` 后 `docker compose -f docker-compose.prod.yml up -d`。
+
+### 4. 可选:推到镜像仓库再 pull
+
+有 Docker Hub / 阿里云 ACR 时,把 `.env` 改成仓库地址再构建推送:
+
+```env
+BACKEND_IMAGE=你的仓库/oops-calendar-backend:latest
+WEB_IMAGE=你的仓库/oops-calendar-web:latest
+```
+
+```powershell
+docker compose build
+docker compose push
+```
+
+服务器同一份 `.env` + `docker-compose.prod.yml`:
+
+```bash
+docker login
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+```
+
+国内直连 Docker Hub 常超时,优先用上面的 `save`/`load`,或推到阿里云 ACR。
+
+### 4b. GitHub Actions 自动构建到 GHCR(推荐)
+
+仓库已带 `.github/workflows/docker-build.yml`。推到 `main` 分支时,CI 会自动把前后端打成镜像并推送到 GitHub Container Registry(GHCR),无需手动 build。
+
+镜像地址:`ghcr.io/<你的用户名>/<仓库名>/oops-calendar-backend` 和 `.../oops-calendar-web`,带 `latest`(默认分支)和 `sha-<短哈希>` 标签。
+
+服务器用 `.env` 指向 GHCR 直接 pull:
+
+```env
+BACKEND_IMAGE=ghcr.io/<你的用户名>/<仓库名>/oops-calendar-backend:latest
+WEB_IMAGE=ghcr.io/<你的用户名>/<仓库名>/oops-calendar-web:latest
+```
+
+```bash
+# 服务器登录 GHCR(用 GitHub 的 PAT,需 read:packages 权限;或该 package 已设为 public 则免登录)
+echo $GHCR_PAT | docker login ghcr.io -u <你的用户名> --password-stdin
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+```
+
+注意:用 GHCR 时 GitHub 用户名需小写。也可在 GitHub 把镜像包设为 public,服务器即可免登录 pull。
+
+### 5. 日常运维
+
+```bash
+docker compose -f docker-compose.prod.yml logs -f
+docker compose -f docker-compose.prod.yml ps
+docker compose -f docker-compose.prod.yml down          # 保留数据卷
+docker compose -f docker-compose.prod.yml down -v      # 清空收藏/SQLite
+```
+
+要点:
+
+- 数据在 named volume `oops_calendar_data`,换镜像不丢收藏。
+- 后端只在容器网络听 `8080`,不映射到宿主机。
+- 不要把含 Key 的 `.env` 提交到 git。
+- 本机开发仍可用带 `build` 的 `docker compose up -d --build`。
+
+### 备选:在服务器上用源码构建
+
+没有导出镜像时,把整个 `app/` 拷到服务器后 `docker compose up -d --build`(需能拉取基础镜像;国内用 `.env` 里 `DOCKER_HUB=docker.m.daocloud.io`)。
+
+## 生产构建/部署(不使用 Docker)
+
+```bash
+# 1. 后端:直接启动(监听 8080;对外网卡请设 HOST=0.0.0.0)
 cd backend
 run-backend.cmd                   # 直接启动(监听 8080),无编译步骤
 
