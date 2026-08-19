@@ -80,6 +80,15 @@ export function fetchNewsSources(signal?: AbortSignal): Promise<NewsSourceMeta[]
   return getJson<NewsSourceMeta[]>('/api/news/sources', signal)
 }
 
+export interface NewsCountResponse {
+  count: number
+}
+
+/** 数据库中已入库快讯的总条数(全部数据源,不受筛选影响)。 */
+export function fetchNewsCount(signal?: AbortSignal): Promise<NewsCountResponse> {
+  return getJson<NewsCountResponse>('/api/news/count', signal)
+}
+
 export interface NewsHistoryResponse {
   items: NewsItem[]
   total: number

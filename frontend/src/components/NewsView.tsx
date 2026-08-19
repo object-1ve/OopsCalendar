@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { NewsItem, NewsSourceMeta } from '../types'
-import { fetchNews, fetchNewsHistory, fetchNewsPreferences, fetchNewsSources, saveNewsPreferences } from '../api'
+import { fetchNews, fetchNewsCount, fetchNewsHistory, fetchNewsPreferences, fetchNewsSources, saveNewsPreferences } from '../api'
 import { useNewsFavorites } from '../hooks/useNewsFavorites'
 import { formatNewsTime } from '../utils'
 
@@ -83,6 +83,7 @@ export default function NewsView() {
   const [moreOffset, setMoreOffset] = useState<number | null>(null)
   const [moreDone, setMoreDone] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [dbCount, setDbCount] = useState<number | null>(null)
   const loadingMoreRef = useRef(false)
   const listRef = useRef<HTMLDivElement | null>(null)
   const pendingRef = useRef<number | null>(null) // 防抖定时器
@@ -223,6 +224,26 @@ export default function NewsView() {
     return () => es.close()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // 数据库已入库快讯总条数(全部数据源,不受筛选影响)
+  useEffect(() => {
+    let cancelled = false
+    const loadCount = () =>
+      fetchNewsCount()
+        .then((resp) => {
+          if (!cancelled) setDbCount(resp.count)
+        })
+        .catch(() => {
+          // 后端不可达时静默,不打断快讯主流程
+        })
+    loadCount()
+    // 每次手动刷新后也同步一次
+    const iv = window.setInterval(loadCount, 60000)
+    return () => {
+      cancelled = true
+      window.clearInterval(iv)
+    }
+  }, [tick])
 
   // 渲染前按当前筛选(全部 = 启用的源;单独源 = 只看该源)
   const displayed = useMemo(() => {
@@ -411,6 +432,11 @@ export default function NewsView() {
             aria-label="搜索快讯"
           />
           {query.trim() && <span className="news-result-count">匹配 {filtered.length} 条</span>}
+          {dbCount != null && (
+            <span className="news-db-count" title="数据库已入库快讯总条数(不受筛选影响)">
+              库中 {dbCount} 条
+            </span>
+          )}
           <span className="news-live" title="已连接实时推送,新快讯约 15 秒内到达">
             <span className="news-live-dot" /> 实时
           </span>

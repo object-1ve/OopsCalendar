@@ -861,6 +861,13 @@ body {
   color: var(--text-dim);
 }
 
+.news-db-count {
+  font-size: 12px;
+  color: var(--blue);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .news-live {
   display: inline-flex;
   align-items: center;
