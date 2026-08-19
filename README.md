@@ -199,7 +199,7 @@ docker compose -f docker-compose.prod.yml up -d
 - `ghcr.io/object-1ve/oops-calendar-frontend`(Nginx + 静态前端)
 - `ghcr.io/object-1ve/oops-calendar-backend`(Python FastAPI)
 
-每个镜像带 `latest`(默认分支)、`master`、`v*.*` 和 `sha-<短哈希>` 标签。
+每个镜像带 `latest`(默认分支)、`master`、`sha-<短哈希>` 标签;打 `v*.*.*` 标签(如 `v1.2.3`)时还会生成干净的语义版本标签 `1.2.3`、`1.2`、`1`。
 
 **首次使用**:在 GitHub 右上角头像 → Your packages 里把 `oops-calendar-frontend` 和 `oops-calendar-backend` 设为 **public**(仓库是公开的,建议直接公开;不公开则服务器 pull 需用 PAT 登录)。GHCR 包默认私有,设成 public 后服务器即可免登录 pull。
 
@@ -213,6 +213,22 @@ docker compose -f docker-compose.prod.yml pull
 docker compose -f docker-compose.prod.yml up -d
 curl http://127.0.0.1/api/health
 ```
+
+**固定到某个版本号**(不跟随 `latest`,适合生产锁定版本):在服务器 `.env` 里用 `BACKEND_IMAGE` / `WEB_IMAGE` 指定带版本号的标签,再 pull。
+
+```bash
+# ~/oops-calendar/.env
+BACKEND_IMAGE=ghcr.io/object-1ve/oops-calendar-backend:1.2.3
+WEB_IMAGE=ghcr.io/object-1ve/oops-calendar-frontend:1.2.3
+```
+
+```bash
+cd ~/oops-calendar
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+```
+
+> 默认(不设 `BACKEND_IMAGE`/`WEB_IMAGE`)时拉取 `latest`,每次推送自动更新。若 pull 到旧缓存,加 `--force-recreate` 重新 `up -d`。
 
 ### 5. 日常运维
 
