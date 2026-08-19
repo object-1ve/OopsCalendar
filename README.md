@@ -192,25 +192,27 @@ docker compose -f docker-compose.prod.yml up -d
 
 ### 4b. GitHub Actions 自动构建到 GHCR(推荐)
 
-仓库已带 `.github/workflows/docker-build.yml`。推到 `main` 分支时,CI 会自动把前后端打成镜像并推送到 GitHub Container Registry(GHCR),无需手动 build。
+仓库已带 `.github/workflows/docker-publish.yml`。推送到 `master` 分支(或打 `v*.*` 标签,或 Actions 页面手动 Run workflow)时,CI 自动把前端(Nginx)和 Python 后端(FastAPI)打成镜像并推送到 GitHub Container Registry(GHCR),无需手动 build。
 
-镜像地址:`ghcr.io/<你的用户名>/<仓库名>/oops-calendar-backend` 和 `.../oops-calendar-web`,带 `latest`(默认分支)和 `sha-<短哈希>` 标签。
+镜像地址(以 GHCR 用户命名空间,不是仓库路径):
 
-服务器用 `.env` 指向 GHCR 直接 pull:
+- `ghcr.io/object-1ve/oops-calendar-frontend`(Nginx + 静态前端)
+- `ghcr.io/object-1ve/oops-calendar-backend`(Python FastAPI)
 
-```env
-BACKEND_IMAGE=ghcr.io/<你的用户名>/<仓库名>/oops-calendar-backend:latest
-WEB_IMAGE=ghcr.io/<你的用户名>/<仓库名>/oops-calendar-web:latest
-```
+每个镜像带 `latest`(默认分支)、`master`、`v*.*` 和 `sha-<短哈希>` 标签。
+
+**首次使用**:在 GitHub 右上角头像 → Your packages 里把 `oops-calendar-frontend` 和 `oops-calendar-backend` 设为 **public**(仓库是公开的,建议直接公开;不公开则服务器 pull 需用 PAT 登录)。GHCR 包默认私有,设成 public 后服务器即可免登录 pull。
+
+服务器用 `docker-compose.prod.yml` 直接 pull 运行(镜像名已在 compose 里写死,想换仓库时用 `.env` 的 `BACKEND_IMAGE` / `WEB_IMAGE` 覆盖):
 
 ```bash
-# 服务器登录 GHCR(用 GitHub 的 PAT,需 read:packages 权限;或该 package 已设为 public 则免登录)
-echo $GHCR_PAT | docker login ghcr.io -u <你的用户名> --password-stdin
+# 包已设为 public:免登录直接 pull;否则先登录(用 GitHub PAT,需 read:packages 权限)
+echo $GHCR_PAT | docker login ghcr.io -u object-1ve --password-stdin
+cd ~/oops-calendar
 docker compose -f docker-compose.prod.yml pull
 docker compose -f docker-compose.prod.yml up -d
+curl http://127.0.0.1/api/health
 ```
-
-注意:用 GHCR 时 GitHub 用户名需小写。也可在 GitHub 把镜像包设为 public,服务器即可免登录 pull。
 
 ### 5. 日常运维
 

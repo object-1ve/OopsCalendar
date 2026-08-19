@@ -66,10 +66,15 @@ jobs:
       - name: Build and push backend
         uses: docker/build-push-action@v6
         with:
-          context: ./backend-java
-          file: ./backend-java/Dockerfile
+          # 生产后端 = Python FastAPI(backend/);backend-java 为旧版,保留作参考不再运行
+          context: ./backend
+          file: ./backend/Dockerfile
           push: true
           tags: ${{ steps.meta-backend.outputs.tags }}
           labels: ${{ steps.meta-backend.outputs.labels }}
           cache-from: type=gha,scope=backend
           cache-to: type=gha,mode=max,scope=backend
+          # CI 在 GitHub 海外 runner 上构建,用官方源覆盖 Dockerfile 里的国内默认值
+          build-args: |
+            DOCKER_HUB=docker.io
+            PIP_INDEX_URL=https://pypi.org/simple

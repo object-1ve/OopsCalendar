@@ -1,6 +1,6 @@
 services:
   backend:
-    image: ghcr.io/object-1ve/oops-calendar-backend:latest
+    image: ${BACKEND_IMAGE:-ghcr.io/object-1ve/oops-calendar-backend:latest}
     restart: unless-stopped
     environment:
       FMP_API_KEY: ${FMP_API_KEY:-}
@@ -9,7 +9,7 @@ services:
       - ./data:/app/data
 
   frontend:
-    image: ghcr.io/object-1ve/oops-calendar-frontend:latest
+    image: ${WEB_IMAGE:-ghcr.io/object-1ve/oops-calendar-frontend:latest}
     restart: unless-stopped
     depends_on:
       - backend
