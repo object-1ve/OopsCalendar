@@ -13,6 +13,9 @@ desktop.ini
 *.tmp
 *.sample.json
 
+# ===== 旧版 Java 后端(保留本地参考,不再进入版本库) =====
+backend-java/
+
 # ===== Python 后端 =====
 backend/.venv/
 backend/__pycache__/
