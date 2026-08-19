@@ -1,6 +1,6 @@
 services:
   backend:
-    image: ${BACKEND_IMAGE:-ghcr.io/object-1ve/oops-calendar-backend:latest}
+    image: ${BACKEND_IMAGE:?需在 .env 中设置 BACKEND_IMAGE(如 ghcr.io/object-1ve/oops-calendar-backend:1.2.3)}
     restart: unless-stopped
     environment:
       FMP_API_KEY: ${FMP_API_KEY:-}
@@ -9,7 +9,7 @@ services:
       - ./data:/app/data
 
   frontend:
-    image: ${WEB_IMAGE:-ghcr.io/object-1ve/oops-calendar-frontend:latest}
+    image: ${WEB_IMAGE:?需在 .env 中设置 WEB_IMAGE(如 ghcr.io/object-1ve/oops-calendar-frontend:1.2.3)}
     restart: unless-stopped
     depends_on:
       - backend
