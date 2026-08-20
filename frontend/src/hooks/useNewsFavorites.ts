@@ -75,5 +75,18 @@ export function useNewsFavorites() {
 
   const isFavorite = useCallback((id: string) => favorites.some((f) => f.id === id), [favorites])
 
-  return { favorites, toggleFavorite, isFavorite }
+  /** 去重导入后应用服务端合并结果(服务端为权威,本地缓存同步,按 id 去重)。 */
+  const applyImport = useCallback((items: NewsItem[]) => {
+    const seen = new Set<string>()
+    const deduped = items.filter((it) => {
+      const id = it?.id
+      if (!id || seen.has(id)) return false
+      seen.add(id)
+      return true
+    })
+    setFavorites(deduped)
+    saveLocal(deduped)
+  }, [])
+
+  return { favorites, toggleFavorite, isFavorite, applyImport }
 }

@@ -91,3 +91,21 @@ export interface NewsFavoritesResponse {
   configured: boolean
   items: NewsItem[]
 }
+
+/** 快讯收藏导出文件的封装格式(导入兼容;也接受裸 NewsItem 数组)。 */
+export interface NewsFavoritesExport {
+  type?: string
+  version?: number
+  exportedAt?: string
+  count?: number
+  items: NewsItem[]
+}
+
+/** 去重导入快讯收藏的结果:imported=新增,skipped=跳过(重复/格式不正确),total=当前总数。 */
+export interface NewsImportResponse {
+  configured: boolean
+  imported: number
+  skipped: number
+  total: number
+  items: NewsItem[]
+}

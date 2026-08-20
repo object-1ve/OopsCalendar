@@ -3,6 +3,7 @@ import type {
   FavoritesResponse,
   HealthResponse,
   NewsFavoritesResponse,
+  NewsImportResponse,
   NewsItem,
   NewsPreferences,
   NewsResponse,
@@ -165,4 +166,42 @@ export async function saveNewsFavorites(items: NewsItem[]): Promise<NewsFavorite
     throw new Error(`保存失败 (HTTP ${resp.status})`)
   }
   return (await resp.json()) as NewsFavoritesResponse
+}
+
+/** 导出快讯收藏:下载服务端生成的封装 JSON 文件(news-favorites.json)。 */
+export async function exportNewsFavorites(): Promise<void> {
+  const resp = await fetch('/api/news/favorites/export', { cache: 'no-store' })
+  if (!resp.ok) {
+    throw new Error(`导出失败 (HTTP ${resp.status})`)
+  }
+  const blob = await resp.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'news-favorites.json'
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
+/** 去重导入快讯收藏:合并进现有收藏(不删现有),按 itemId 去重,返回导入/跳过统计。 */
+export async function importNewsFavorites(items: NewsItem[]): Promise<NewsImportResponse> {
+  const resp = await fetch('/api/news/favorites/import', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ items }),
+    cache: 'no-store',
+  })
+  if (!resp.ok) {
+    let message = `导入失败 (HTTP ${resp.status})`
+    try {
+      const body = (await resp.json()) as { message?: string }
+      if (body.message) message = body.message
+    } catch {
+      // 非 JSON 错误体,保留默认信息
+    }
+    throw new Error(message)
+  }
+  return (await resp.json()) as NewsImportResponse
 }

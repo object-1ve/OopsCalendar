@@ -49,3 +49,57 @@ class NewsFavoriteService:
             final.append(item)
 
         self._db.replace_news_favorites(final, created_map)
+
+    def merge(self, items: list | None) -> dict:
+        """去重导入:把导入条目合并进现有收藏(不删现有),按 itemId 去重。
+
+        - 批内重复(itemId 相同)与已收藏的条目跳过(保留原快照与首藏时间);
+        - 缺 id / title / source 的畸形条目跳过;
+        - 新条目按当前时间收藏,与现有收藏合并后按收藏时间倒序返回。
+        返回 {"imported": 新增条数, "skipped": 跳过条数(重复/畸形), "items": 合并后完整列表}。
+        """
+        incoming: dict = {}
+        skipped = 0
+        for it in items or []:
+            if not isinstance(it, dict):
+                skipped += 1
+                continue
+            iid = (it.get("id") or "").strip()
+            title = (it.get("title") or "").strip()
+            source = (it.get("source") or "").strip()
+            if not iid or not title or not source:
+                skipped += 1
+                continue
+            if iid in incoming:
+                skipped += 1
+                continue
+            item = dict(it)
+            item["id"] = iid
+            item["title"] = title
+            item["source"] = source
+            incoming[iid] = item
+
+        existing = self._db.get_news_favorites()
+        existing_by_id = {i["id"]: i for i in existing}
+        created_map = self._db.news_favorite_created_map()
+        now_iso = datetime.now(timezone.utc).isoformat()
+
+        merged: dict = {}
+        imported = 0
+        for iid, item in incoming.items():
+            if iid in existing_by_id:
+                merged[iid] = existing_by_id[iid]  # 已收藏:保留原快照,不算新增
+                skipped += 1
+            else:
+                merged[iid] = item
+                created_map[iid] = now_iso
+                imported += 1
+        # 现有收藏中不在导入列表里的保留
+        for iid, item in existing_by_id.items():
+            merged.setdefault(iid, item)
+
+        final = sorted(
+            merged.values(), key=lambda it: (created_map.get(it["id"], now_iso), it["id"]), reverse=True
+        )
+        self._db.replace_news_favorites(final, created_map)
+        return {"imported": imported, "skipped": skipped, "items": final}

@@ -11,7 +11,7 @@ from pathlib import Path
 from fastapi import FastAPI, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import config
@@ -273,6 +273,48 @@ def create_app() -> FastAPI:
     @app.get("/api/news/favorites")
     async def get_news_favorites():
         return clean({"configured": news_favs.is_configured(), "items": news_favs.get()})
+
+    @app.get("/api/news/favorites/export")
+    async def export_news_favorites():
+        """导出快讯收藏为 JSON 文件(下载);导入时兼容该封装格式,也接受裸数组。"""
+        items = news_favs.get()
+        payload = {
+            "type": "news-favorites",
+            "version": 1,
+            "exportedAt": now_iso(),
+            "count": len(items),
+            "items": items,
+        }
+        return Response(
+            content=json.dumps(payload, ensure_ascii=False, indent=2),
+            media_type="application/json",
+            headers={"Content-Disposition": 'attachment; filename="news-favorites.json"'},
+        )
+
+    @app.post("/api/news/favorites/import")
+    async def import_news_favorites(request: Request):
+        """去重导入快讯收藏:合并进现有收藏(不删现有),按 itemId 去重,返回统计。"""
+        try:
+            raw = await request.body()
+            payload = json.loads(raw) if raw else []
+        except Exception:
+            raise ApiException(400, "请求体解析失败")
+        if isinstance(payload, dict):
+            items = payload.get("items")
+        else:
+            items = payload
+        if not isinstance(items, list):
+            raise ApiException(400, '导入数据格式非法:应为快讯数组或 {"items": [...]}')
+        result = news_favs.merge(items)
+        return clean(
+            {
+                "configured": news_favs.is_configured(),
+                "imported": result["imported"],
+                "skipped": result["skipped"],
+                "total": len(result["items"]),
+                "items": result["items"],
+            }
+        )
 
     @app.put("/api/news/favorites")
     async def save_news_favorites(request: Request):

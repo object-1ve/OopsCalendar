@@ -288,6 +288,44 @@ def test_news_favorites_skips_malformed(tmp_path):
     assert len(got) == 1 and got[0]["id"] == "x:1"
 
 
+def test_news_favorites_dedup_import_merge(tmp_path):
+    db = Database(tmp_path / "earnings.db")
+    svc = NewsFavoriteService(db)
+    a = {"id": "jin10:1", "title": "一", "url": "u1", "pubDate": 1, "source": "jin10",
+         "sourceName": "金十", "summary": "s", "important": True}
+    b = dict(a, id="jin10:2", title="二")
+    svc.save([a])
+    first_created = db.news_favorite_created_map()["jin10:1"]
+
+    # 导入:[a(已收藏快照刷新)、b(新增)、批内重复 c、畸形(无 title)] → 合并去重,不删现有
+    res = svc.merge([dict(a, title="一(新)"), b, {"id": "jin10:3", "title": "三", "source": "jin10"},
+                     dict(a, id="jin10:3", title="三(批内重复)"), {"id": "jin10:4"}])
+    assert res["imported"] == 2  # b、c 新增
+    assert res["skipped"] == 3   # a 已收藏 + c 批内重复 + 畸形
+    ids = [i["id"] for i in res["items"]]
+    assert ids == ["jin10:3", "jin10:2", "jin10:1"]  # 收藏时间倒序,新导入在最前
+    # a 保留原快照(未用导入里的"一(新)"覆盖)与原首藏时间
+    by_id = {i["id"]: i for i in res["items"]}
+    assert by_id["jin10:1"]["title"] == "一"
+    assert db.news_favorite_created_map()["jin10:1"] == first_created
+    # 落库后重新读取一致(去重导入对现有收藏是合并而非替换)
+    got = {i["id"] for i in svc.get()}
+    assert got == {"jin10:1", "jin10:2", "jin10:3"}
+
+
+def test_news_favorites_dedup_import_empty_and_bare_array_noop(tmp_path):
+    db = Database(tmp_path / "earnings.db")
+    svc = NewsFavoriteService(db)
+    res = svc.merge([])
+    assert res == {"imported": 0, "skipped": 0, "items": []}
+    assert not svc.is_configured()
+    # 空数组/None 不改变现有收藏
+    svc.save([{"id": "x:1", "title": "好", "source": "jin10"}])
+    res = svc.merge(None)
+    assert res["imported"] == 0 and res["skipped"] == 0
+    assert len(res["items"]) == 1
+
+
 # ---------- 数据源偏好(全项目共享一份)+ 迁移 ----------
 
 
