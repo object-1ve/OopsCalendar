@@ -24,6 +24,48 @@ class NewsStore:
         except Exception:
             log.warning("快讯落库失败", exc_info=True)
 
+    def merge(self, items: list | None) -> dict:
+        """去重导入:把导入条目合并进已入库快讯(news_item),按 item_id 去重。
+
+        - 批内重复(item_id 相同)与已存在的条目跳过;
+        - 缺 id / title / source 的畸形条目跳过;
+        - 新条目按当前时间入库(added_at = now,不触发 30 天保留期清理)。
+        返回 {"imported": 新增条数, "skipped": 跳过条数(重复/畸形), "items": 有效条目列表}。
+        """
+        incoming: list = []
+        seen: set = set()
+        skipped = 0
+        for it in items or []:
+            if not isinstance(it, dict):
+                skipped += 1
+                continue
+            iid = (it.get("id") or "").strip()
+            title = (it.get("title") or "").strip()
+            source = (it.get("source") or "").strip()
+            if not iid or not title or not source:
+                skipped += 1
+                continue
+            if iid in seen:
+                skipped += 1
+                continue
+            seen.add(iid)
+            item = dict(it)
+            item["id"] = iid
+            item["title"] = title
+            item["source"] = source
+            incoming.append(item)
+
+        try:
+            existing = self._db.existing_news_item_ids()
+            already = sum(1 for it in incoming if it["id"] in existing)
+            imported = len(incoming) - already
+            if incoming:
+                self._db.upsert_news_items(incoming, self._retention_days)
+            return {"imported": imported, "skipped": skipped + already, "items": incoming}
+        except Exception:
+            log.warning("快讯导入落库失败", exc_info=True)
+            return {"imported": 0, "skipped": skipped, "items": incoming}
+
     def load(self, limit: int, sources: list | None = None) -> list:
         """读最近 limit 条已入库快讯;失败返回空列表。"""
         try:

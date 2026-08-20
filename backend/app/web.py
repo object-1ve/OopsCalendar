@@ -244,6 +244,53 @@ def create_app() -> FastAPI:
         total = news_store.count(keys, q)
         return clean({"items": items, "total": total, "offset": offset, "limit": limit})
 
+    @app.get("/api/news/export")
+    async def export_news(
+        sources: str | None = None,
+        search: str | None = None,
+        limit: int = Query(20000, ge=1, le=100000),
+    ):
+        """导出已入库快讯为 JSON 文件(下载);sources 逗号分隔,search 模糊匹配标题/摘要。"""
+        keys = [k.strip() for k in sources.split(",") if k.strip()] if sources else None
+        q = (search or "").strip() or None
+        items = news_store.load_history(limit, keys, 0, q)
+        payload = {
+            "type": "news",
+            "version": 1,
+            "exportedAt": now_iso(),
+            "count": len(items),
+            "items": items,
+        }
+        return Response(
+            content=json.dumps(payload, ensure_ascii=False, indent=2),
+            media_type="application/json",
+            headers={"Content-Disposition": 'attachment; filename="news.json"'},
+        )
+
+    @app.post("/api/news/import")
+    async def import_news(request: Request):
+        """去重导入快讯到已入库库(news_item):按 item_id 去重,返回导入/跳过统计。"""
+        try:
+            raw = await request.body()
+            payload = json.loads(raw) if raw else []
+        except Exception:
+            raise ApiException(400, "请求体解析失败")
+        if isinstance(payload, dict):
+            items = payload.get("items")
+        else:
+            items = payload
+        if not isinstance(items, list):
+            raise ApiException(400, '导入数据格式非法:应为快讯数组或 {"items": [...]}')
+        result = news_store.merge(items)
+        return clean(
+            {
+                "imported": result["imported"],
+                "skipped": result["skipped"],
+                "total": news_store.count(),
+                "items": result["items"],
+            }
+        )
+
     @app.get("/api/news/stream")
     async def news_stream():
         q = stream.connect()

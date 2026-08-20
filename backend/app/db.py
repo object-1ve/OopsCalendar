@@ -383,6 +383,12 @@ class Database:
             row = conn.execute(sql, params).fetchone()
         return int(row["c"]) if row else 0
 
+    def existing_news_item_ids(self) -> set:
+        """返回 news_item 表中全部 item_id(用于导入时统计重复)。"""
+        with self._lock, self._connect() as conn:
+            rows = conn.execute("SELECT item_id FROM news_item").fetchall()
+        return {r["item_id"] for r in rows}
+
     # ---------- 工具 ----------
 
     @staticmethod

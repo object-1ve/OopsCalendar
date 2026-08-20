@@ -479,6 +479,33 @@ def test_news_history_pagination_and_search(tmp_path):
     assert store.count(sources=["s1"]) == 25
 
 
+def test_news_history_dedup_import_merge(tmp_path):
+    db = Database(tmp_path / "earnings.db")
+    store = NewsStore(db)
+    store.save([item("a", "s1", 1), item("b", "s1", 2)])
+    # 导入:a 已存在、c 新增、批内重复 d、畸形(无 title)→ 合并去重
+    res = store.merge([item("a", "s1", 1), item("c", "s1", 3),
+                       item("d", "s1", 4), item("d", "s1", 5), {"id": "e", "source": "s1"}])
+    assert res["imported"] == 2  # c、d 新增
+    assert res["skipped"] == 3   # a 已存在 + d 批内重复 + e 畸形
+    assert {i["id"] for i in res["items"]} == {"a", "c", "d"}
+    assert {i["id"] for i in store.load(100)} == {"a", "b", "c", "d"}
+    # 幂等:再导同一批不重复入库
+    res2 = store.merge([item("c", "s1", 3)])
+    assert res2["imported"] == 0 and res2["skipped"] == 1
+    assert store.count() == 4
+
+
+def test_news_history_dedup_import_empty(tmp_path):
+    db = Database(tmp_path / "earnings.db")
+    store = NewsStore(db)
+    res = store.merge([])
+    assert res["imported"] == 0 and res["skipped"] == 0 and res["items"] == []
+    assert store.count() == 0
+    res = store.merge(None)
+    assert res["imported"] == 0 and res["skipped"] == 0
+
+
 # ---------- 相对时间 ----------
 
 

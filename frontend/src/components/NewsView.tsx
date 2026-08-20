@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { NewsFavoritesExport, NewsItem, NewsSourceMeta } from '../types'
 import {
+  exportNews,
   exportNewsFavorites,
   fetchNews,
   fetchNewsCount,
   fetchNewsHistory,
   fetchNewsPreferences,
   fetchNewsSources,
+  importNews,
   importNewsFavorites,
   saveNewsPreferences,
 } from '../api'
@@ -373,18 +375,43 @@ export default function NewsView() {
     if (active === key && !next.has(key)) setActive('all')
   }
 
-  /** 导出全部收藏为 JSON 文件(服务端生成)。 */
+  /** 当前页签的导出范围:收藏 = 收藏快照;其余 = 已入库快讯(按当前数据源与搜索词)。 */
+  const exportScope = (): { kind: 'fav' } | { kind: 'news'; sources?: string; search?: string } => {
+    if (active === 'fav') return { kind: 'fav' }
+    if (active === 'all') {
+      return {
+        kind: 'news',
+        sources: enabledKeys.length > 0 ? enabledKeys.join(',') : undefined,
+        search: query.trim() || undefined,
+      }
+    }
+    return { kind: 'news', sources: active, search: query.trim() || undefined }
+  }
+
+  /** 当前页签的展示名(用于操作提示)。 */
+  const activeTabName = () => {
+    if (active === 'fav') return '收藏'
+    if (active === 'all') return '全部'
+    return sources.find((s) => s.key === active)?.name ?? active
+  }
+
+  /** 导出当前页签内容为 JSON 文件(服务端生成)。 */
   const handleExport = async () => {
     setFavNote(null)
     try {
-      await exportNewsFavorites()
-      setFavNote({ text: `已导出 ${favorites.length} 条收藏到 news-favorites.json`, error: false })
+      const scope = exportScope()
+      const count =
+        scope.kind === 'fav'
+          ? await exportNewsFavorites()
+          : await exportNews(scope.sources, scope.search)
+      const file = scope.kind === 'fav' ? 'news-favorites.json' : 'news.json'
+      setFavNote({ text: `已导出 ${count} 条${activeTabName()}快讯到 ${file}`, error: false })
     } catch (e) {
       setFavNote({ text: `导出失败:${e instanceof Error ? e.message : '请稍后重试'}`, error: true })
     }
   }
 
-  /** 读取选择的 JSON 文件并去重导入(兼容导出文件封装与裸快讯数组)。 */
+  /** 读取选择的 JSON 文件并按当前页签去重导入(兼容导出文件封装与裸快讯数组)。 */
   const handleImportFile = async (file: File) => {
     try {
       setImporting(true)
@@ -396,11 +423,18 @@ export default function NewsView() {
         setFavNote({ text: '导入失败:文件格式不正确(应为快讯数组或导出的 JSON 文件)', error: true })
         return
       }
-      const resp = await importNewsFavorites(list)
-      applyImport(resp.items)
+      const isFav = active === 'fav'
+      const resp = isFav ? await importNewsFavorites(list) : await importNews(list)
+      if (isFav) {
+        applyImport(resp.items)
+      } else {
+        // 导入进快讯库:合并进当前列表(按来源/搜索过滤后自然呈现)并刷新库总数
+        mergeItems(resp.items)
+        setDbCount(resp.total)
+      }
       const parts = [`导入完成:新增 ${resp.imported} 条`]
       if (resp.skipped > 0) parts.push(`跳过 ${resp.skipped} 条(重复或格式不正确)`)
-      parts.push(`当前共 ${resp.total} 条收藏`)
+      parts.push(isFav ? `当前共 ${resp.total} 条收藏` : `当前库中共 ${resp.total} 条`)
       setFavNote({ text: parts.join(';'), error: false })
     } catch (e) {
       setFavNote({ text: `导入失败:${e instanceof Error ? e.message : '文件解析失败'}`, error: true })
@@ -491,37 +525,33 @@ export default function NewsView() {
           </span>
           {fetchedAt != null && <span className="news-updated">更新于 {formatNewsTime(fetchedAt)}</span>}
           {loading && <span className="toolbar-loading">加载中…</span>}
-          {active === 'fav' && (
-            <>
-              <button
-                className="btn small"
-                onClick={handleExport}
-                disabled={importing}
-                title="把全部收藏导出为 JSON 文件"
-              >
-                ⇩ 导出
-              </button>
-              <button
-                className="btn small"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={importing}
-                title="从 JSON 文件导入收藏(自动按 id 去重,不删除现有收藏)"
-              >
-                {importing ? '导入中…' : '⇧ 导入'}
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="application/json,.json"
-                style={{ display: 'none' }}
-                onChange={(e) => {
-                  const f = e.target.files?.[0]
-                  if (f) void handleImportFile(f)
-                }}
-                aria-label="选择要导入的快讯收藏 JSON 文件"
-              />
-            </>
-          )}
+          <button
+            className="btn small"
+            onClick={handleExport}
+            disabled={importing}
+            title={`导出当前${active === 'fav' ? '收藏' : '页签'}为 JSON 文件(收藏页签导出收藏,其余导出已入库快讯)`}
+          >
+            ⇩ 导出
+          </button>
+          <button
+            className="btn small"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={importing}
+            title={`从 JSON 文件导入(自动按 id 去重,不删除现有;收藏页签导入收藏,其余导入已入库快讯)`}
+          >
+            {importing ? '导入中…' : '⇧ 导入'}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/json,.json"
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              const f = e.target.files?.[0]
+              if (f) void handleImportFile(f)
+            }}
+            aria-label="选择要导入的 JSON 文件"
+          />
           <button className="btn small" onClick={() => setShowSettings((v) => !v)} title="选择「全部」中显示的数据源">
             ⚙ 数据源
           </button>

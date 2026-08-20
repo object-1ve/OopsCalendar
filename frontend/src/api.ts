@@ -168,26 +168,49 @@ export async function saveNewsFavorites(items: NewsItem[]): Promise<NewsFavorite
   return (await resp.json()) as NewsFavoritesResponse
 }
 
-/** 导出快讯收藏:下载服务端生成的封装 JSON 文件(news-favorites.json)。 */
-export async function exportNewsFavorites(): Promise<void> {
-  const resp = await fetch('/api/news/favorites/export', { cache: 'no-store' })
+/** 通用导出:请求导出的 JSON 并触发浏览器下载,返回导出的条数。 */
+async function downloadJson(endpoint: string, filename: string): Promise<number> {
+  const resp = await fetch(endpoint, { cache: 'no-store' })
   if (!resp.ok) {
     throw new Error(`导出失败 (HTTP ${resp.status})`)
   }
-  const blob = await resp.blob()
-  const url = URL.createObjectURL(blob)
+  const text = await resp.text()
+  let count = 0
+  try {
+    const data = JSON.parse(text) as { count?: number }
+    count = typeof data.count === 'number' ? data.count : 0
+  } catch {
+    // 计数解析失败不影响下载
+  }
+  const blob = new Blob([text], { type: 'application/json' })
+  const blobUrl = URL.createObjectURL(blob)
   const a = document.createElement('a')
-  a.href = url
-  a.download = 'news-favorites.json'
+  a.href = blobUrl
+  a.download = filename
   document.body.appendChild(a)
   a.click()
   a.remove()
-  URL.revokeObjectURL(url)
+  URL.revokeObjectURL(blobUrl)
+  return count
 }
 
-/** 去重导入快讯收藏:合并进现有收藏(不删现有),按 itemId 去重,返回导入/跳过统计。 */
-export async function importNewsFavorites(items: NewsItem[]): Promise<NewsImportResponse> {
-  const resp = await fetch('/api/news/favorites/import', {
+/** 导出快讯收藏:下载服务端生成的封装 JSON 文件(news-favorites.json),返回收藏条数。 */
+export function exportNewsFavorites(): Promise<number> {
+  return downloadJson('/api/news/favorites/export', 'news-favorites.json')
+}
+
+/** 导出已入库快讯:按数据源(sources 逗号分隔)与搜索词导出,返回导出条数。 */
+export function exportNews(sources?: string, search?: string): Promise<number> {
+  const p = new URLSearchParams()
+  if (sources && sources.trim()) p.set('sources', sources.trim())
+  if (search && search.trim()) p.set('search', search.trim())
+  const qs = p.toString()
+  return downloadJson(`/api/news/export${qs ? `?${qs}` : ''}`, 'news.json')
+}
+
+/** 通用导入:POST 去重导入,返回导入/跳过统计。 */
+async function postNewsImport<T>(endpoint: string, items: NewsItem[]): Promise<T> {
+  const resp = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ items }),
@@ -203,5 +226,15 @@ export async function importNewsFavorites(items: NewsItem[]): Promise<NewsImport
     }
     throw new Error(message)
   }
-  return (await resp.json()) as NewsImportResponse
+  return (await resp.json()) as T
+}
+
+/** 去重导入快讯收藏:合并进现有收藏(不删现有),按 itemId 去重,返回导入/跳过统计。 */
+export function importNewsFavorites(items: NewsItem[]): Promise<NewsImportResponse> {
+  return postNewsImport<NewsImportResponse>('/api/news/favorites/import', items)
+}
+
+/** 去重导入快讯到已入库库:合并进 news_item(不删现有),按 itemId 去重,返回导入/跳过统计。 */
+export function importNews(items: NewsItem[]): Promise<NewsImportResponse> {
+  return postNewsImport<NewsImportResponse>('/api/news/import', items)
 }

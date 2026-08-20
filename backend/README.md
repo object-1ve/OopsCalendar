@@ -56,6 +56,8 @@ backend/
 | `GET /api/news/stream` | SSE 实时推送(每 15s 增量轮询) |
 | `GET/PUT /api/news/preferences` | 快讯数据源偏好(全项目共享一份) |
 | `GET/PUT /api/news/favorites` | 快讯收藏(全项目共享,整表替换) |
+| `GET /api/news/export?sources=&search=` | 导出已入库快讯为 JSON 文件(下载 news.json,sources 按逗号分隔) |
+| `POST /api/news/import` | 去重导入快讯到已入库库(news_item,按 itemId 去重,返回导入/跳过统计) |
 | `GET /api/news/favorites/export` | 导出快讯收藏为 JSON 文件(下载 news-favorites.json) |
 | `POST /api/news/favorites/import` | 去重导入快讯收藏(合并进现有,按 itemId 去重,返回导入/跳过统计) |
 | `GET/PUT /api/favorites` | 收藏公司(全项目共享) |
