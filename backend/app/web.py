@@ -141,7 +141,7 @@ def create_app() -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=config.CorsConfig.allowed_origins,
-        allow_methods=["GET", "POST", "PUT", "OPTIONS"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         allow_headers=["*"],
         max_age=3600,
     )
@@ -368,6 +368,32 @@ def create_app() -> FastAPI:
         body = await _read_body(request)
         news_favs.save(body.get("items"))
         return clean({"configured": news_favs.is_configured(), "items": news_favs.get()})
+
+    @app.get("/api/news/favorite-groups")
+    async def get_favorite_groups():
+        """收藏组别(二级分类)列表;configured=false = 从未创建过组别。"""
+        return clean({"configured": news_favs.groups_configured(), "groups": news_favs.get_groups()})
+
+    @app.put("/api/news/favorite-groups")
+    async def save_favorite_groups(request: Request):
+        body = await _read_body(request)
+        news_favs.save_groups(body.get("groups"))
+        return clean({"configured": news_favs.groups_configured(), "groups": news_favs.get_groups()})
+
+    @app.post("/api/news/favorite-groups/rename")
+    async def rename_favorite_group(request: Request):
+        body = await _read_body(request)
+        old = (body.get("old") or "").strip()
+        new = (body.get("new") or "").strip()
+        if not news_favs.rename_group(old, new):
+            raise ApiException(400, "重命名失败:组别不存在或名称冲突(名称不能为空、不能与现有组重复)")
+        return clean({"configured": news_favs.groups_configured(), "groups": news_favs.get_groups()})
+
+    @app.delete("/api/news/favorite-groups/{name}")
+    async def delete_favorite_group(name: str):
+        """删除组别:该组下的收藏移回未分组,收藏本身不删除。"""
+        news_favs.delete_group(name)
+        return clean({"ok": True, "configured": news_favs.groups_configured(), "groups": news_favs.get_groups()})
 
     @app.get("/api/favorites")
     async def get_favorites():

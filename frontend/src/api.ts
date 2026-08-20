@@ -2,6 +2,7 @@ import type {
   EarningsResponse,
   FavoritesResponse,
   HealthResponse,
+  NewsFavoriteGroupsResponse,
   NewsFavoritesResponse,
   NewsImportResponse,
   NewsItem,
@@ -168,6 +169,58 @@ export async function saveNewsFavorites(items: NewsItem[]): Promise<NewsFavorite
     throw new Error(`保存失败 (HTTP ${resp.status})`)
   }
   return (await resp.json()) as NewsFavoritesResponse
+}
+
+/** 读取服务端保存的收藏组别(二级分类,全项目共享一份)。 */
+export function fetchNewsFavoriteGroups(signal?: AbortSignal): Promise<NewsFavoriteGroupsResponse> {
+  return getJson<NewsFavoriteGroupsResponse>('/api/news/favorite-groups', signal)
+}
+
+/** 保存收藏组别列表到服务端(全项目共享一份,整表替换)。 */
+export async function saveNewsFavoriteGroups(groups: string[]): Promise<NewsFavoriteGroupsResponse> {
+  const resp = await fetch('/api/news/favorite-groups', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ groups }),
+    cache: 'no-store',
+  })
+  if (!resp.ok) {
+    throw new Error(`保存组别失败 (HTTP ${resp.status})`)
+  }
+  return (await resp.json()) as NewsFavoriteGroupsResponse
+}
+
+/** 重命名收藏组别(同步更新该组下收藏的归属)。 */
+export async function renameNewsFavoriteGroup(oldName: string, newName: string): Promise<NewsFavoriteGroupsResponse> {
+  const resp = await fetch('/api/news/favorite-groups/rename', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ old: oldName, new: newName }),
+    cache: 'no-store',
+  })
+  if (!resp.ok) {
+    let message = `重命名失败 (HTTP ${resp.status})`
+    try {
+      const body = (await resp.json()) as { message?: string }
+      if (body.message) message = body.message
+    } catch {
+      // 保留默认信息
+    }
+    throw new Error(message)
+  }
+  return (await resp.json()) as NewsFavoriteGroupsResponse
+}
+
+/** 删除收藏组别(该组下的收藏移回未分组,收藏本身不删除)。 */
+export async function deleteNewsFavoriteGroup(name: string): Promise<{ ok: boolean }> {
+  const resp = await fetch(`/api/news/favorite-groups/${encodeURIComponent(name)}`, {
+    method: 'DELETE',
+    cache: 'no-store',
+  })
+  if (!resp.ok) {
+    throw new Error(`删除组别失败 (HTTP ${resp.status})`)
+  }
+  return (await resp.json()) as { ok: boolean }
 }
 
 /** 通用导出:请求导出的 JSON 并触发浏览器下载,返回导出的条数。 */

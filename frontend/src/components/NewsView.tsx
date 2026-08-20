@@ -13,6 +13,7 @@ import {
   saveNewsPreferences,
 } from '../api'
 import { useNewsFavorites } from '../hooks/useNewsFavorites'
+import { toast } from 'sonner'
 import { formatBytes, formatNewsTime } from '../utils'
 
 /** 快讯视图:SSE 实时推送 + 数据源配置 + 客户端即时筛选。 */
@@ -100,9 +101,25 @@ export default function NewsView() {
   const listRef = useRef<HTMLDivElement | null>(null)
   const pendingRef = useRef<number | null>(null) // 防抖定时器
   const fileInputRef = useRef<HTMLInputElement | null>(null)
-  const { favorites, toggleFavorite, isFavorite, applyImport } = useNewsFavorites()
+  const {
+    favorites,
+    groups,
+    toggleFavorite,
+    isFavorite,
+    applyImport,
+    assignGroup,
+    addGroup,
+    renameGroup,
+    deleteGroup,
+  } = useNewsFavorites()
   const [importing, setImporting] = useState(false)
-  const [favNote, setFavNote] = useState<{ text: string; error: boolean } | null>(null)
+  const [favGroup, setFavGroup] = useState<string>('all') // 收藏 tab 组别筛选:'all' | 'none' | 组别名
+  const [addingGroup, setAddingGroup] = useState(false)
+  const [newGroupName, setNewGroupName] = useState('')
+  const [renamingGroup, setRenamingGroup] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState('')
+  const addGroupInputRef = useRef<HTMLInputElement | null>(null)
+  const renameInputRef = useRef<HTMLInputElement | null>(null)
 
   const mergeItems = (incoming: NewsItem[]) => {
     if (!incoming.length) return
@@ -282,12 +299,23 @@ export default function NewsView() {
     )
   }
 
-  /** 当前页签 + 搜索词过滤后的完整列表(供无限滚动分页)。 */
+  /** 当前页签 + 组别筛选(仅收藏)+ 搜索词过滤后的完整列表(供无限滚动分页)。 */
   const filtered = useMemo(() => {
-    const base = active === 'fav' ? favorites : displayed
+    const base =
+      active === 'fav'
+        ? favorites.filter((it) => {
+            const g = it.groupName ?? ''
+            if (favGroup === 'all') return true
+            if (favGroup === 'none') return !g
+            return g === favGroup
+          })
+        : displayed
     return base.filter(matchesQuery)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, favorites, displayed, query])
+  }, [active, favorites, displayed, query, favGroup])
+
+  const ungroupedCount = useMemo(() => favorites.filter((f) => !(f.groupName ?? '')).length, [favorites])
+  const groupCount = useCallback((g: string) => favorites.filter((f) => (f.groupName ?? '') === g).length, [favorites])
 
   const shown = useMemo(() => filtered.slice(0, visible), [filtered, visible])
 
@@ -379,6 +407,65 @@ export default function NewsView() {
     if (active === key && !next.has(key)) setActive('all')
   }
 
+  // 组别输入框自动聚焦
+  useEffect(() => {
+    if (addingGroup) addGroupInputRef.current?.focus()
+  }, [addingGroup])
+  useEffect(() => {
+    if (renamingGroup) renameInputRef.current?.focus()
+  }, [renamingGroup])
+
+  /** 新建收藏组别。 */
+  const handleAddGroup = () => {
+    const name = newGroupName.trim()
+    if (!name) return
+    if (addGroup(name)) {
+      setNewGroupName('')
+      setAddingGroup(false)
+      toast.success(`已创建组别「${name}」`)
+    } else {
+      setNewGroupName('')
+      setAddingGroup(false)
+      toast.error(`组别「${name}」已存在`)
+    }
+  }
+
+  /** 保存组别重命名(Enter / 失焦提交;双击组别进入重命名)。 */
+  const handleRenameGroup = async (oldName: string) => {
+    if (renamingGroup !== oldName) return
+    const name = renameValue.trim()
+    setRenamingGroup(null)
+    if (!name || name === oldName) return
+    try {
+      await renameGroup(oldName, name)
+      if (favGroup === oldName) setFavGroup(name)
+      toast.success(`已重命名组别「${oldName}」→「${name}」`)
+    } catch (e) {
+      toast.error(`重命名失败:${e instanceof Error ? e.message : '请稍后重试'}`)
+    }
+  }
+
+  /** 删除组别:toast 内联确认(点击「删除」才执行),该组下的收藏移到未分组。 */
+  const handleDeleteGroup = (name: string) => {
+    toast(`删除组别「${name}」?`, {
+      description: '该组下的收藏会移到「未分组」,收藏本身不会删除。',
+      action: {
+        label: '删除',
+        onClick: async () => {
+          try {
+            await deleteGroup(name)
+            if (favGroup === name) setFavGroup('all')
+            toast.success(`已删除组别「${name}」,组内收藏移到未分组`)
+          } catch (e) {
+            toast.error(`删除失败:${e instanceof Error ? e.message : '请稍后重试'}`)
+          }
+        },
+      },
+      cancel: { label: '取消', onClick: () => {} },
+      duration: 10000,
+    })
+  }
+
   /** 当前页签的导出范围:收藏 = 收藏快照;其余 = 已入库快讯(按当前数据源与搜索词)。 */
   const exportScope = (): { kind: 'fav' } | { kind: 'news'; sources?: string; search?: string } => {
     if (active === 'fav') return { kind: 'fav' }
@@ -401,7 +488,6 @@ export default function NewsView() {
 
   /** 导出当前页签内容为 JSON 文件(服务端生成)。 */
   const handleExport = async () => {
-    setFavNote(null)
     try {
       const scope = exportScope()
       const count =
@@ -409,9 +495,9 @@ export default function NewsView() {
           ? await exportNewsFavorites()
           : await exportNews(scope.sources, scope.search)
       const file = scope.kind === 'fav' ? 'news-favorites.json' : 'news.json'
-      setFavNote({ text: `已导出 ${count} 条${activeTabName()}快讯到 ${file}`, error: false })
+      toast.success(`已导出 ${count} 条${activeTabName()}快讯到 ${file}`)
     } catch (e) {
-      setFavNote({ text: `导出失败:${e instanceof Error ? e.message : '请稍后重试'}`, error: true })
+      toast.error(`导出失败:${e instanceof Error ? e.message : '请稍后重试'}`)
     }
   }
 
@@ -419,12 +505,11 @@ export default function NewsView() {
   const handleImportFile = async (file: File) => {
     try {
       setImporting(true)
-      setFavNote(null)
       const text = await file.text()
       const data = JSON.parse(text) as unknown
       const list = Array.isArray(data) ? data : (data as NewsFavoritesExport | null)?.items
       if (!Array.isArray(list)) {
-        setFavNote({ text: '导入失败:文件格式不正确(应为快讯数组或导出的 JSON 文件)', error: true })
+        toast.error('导入失败:文件格式不正确(应为快讯数组或导出的 JSON 文件)')
         return
       }
       const isFav = active === 'fav'
@@ -439,9 +524,9 @@ export default function NewsView() {
       const parts = [`导入完成:新增 ${resp.imported} 条`]
       if (resp.skipped > 0) parts.push(`跳过 ${resp.skipped} 条(重复或格式不正确)`)
       parts.push(isFav ? `当前共 ${resp.total} 条收藏` : `当前库中共 ${resp.total} 条`)
-      setFavNote({ text: parts.join(';'), error: false })
+      toast.success(parts.join(';'))
     } catch (e) {
-      setFavNote({ text: `导入失败:${e instanceof Error ? e.message : '文件解析失败'}`, error: true })
+      toast.error(`导入失败:${e instanceof Error ? e.message : '文件解析失败'}`)
     } finally {
       setImporting(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -451,7 +536,7 @@ export default function NewsView() {
   const iconOf = (key: string) => sources.find((s) => s.key === key)?.icon ?? null
 
   /** 渲染一条快讯 + 右侧收藏按钮;收藏 tab 与实时列表共用,保证样式一致。 */
-  const renderItem = (it: NewsItem, fav: boolean) => (
+  const renderItem = (it: NewsItem, fav: boolean, groupControl = false) => (
     <article className={`news-item${fav ? ' news-item-favorite' : ''}`} key={it.id}>
       <a className="news-link" href={it.url} target="_blank" rel="noreferrer">
         <span className={`news-icon news-icon-${it.source}`}>
@@ -473,14 +558,41 @@ export default function NewsView() {
           </div>
         </div>
       </a>
-      <button
-        className={`news-fav-btn${fav ? ' active' : ''}`}
-        onClick={() => toggleFavorite(it)}
-        title={fav ? '取消收藏' : '收藏这条快讯'}
-        aria-label={fav ? '取消收藏' : '收藏'}
-      >
-        {fav ? '★' : '☆'}
-      </button>
+      {groupControl ? (
+        <div className="news-fav-side">
+          <select
+            className="news-group-select"
+            value={it.groupName ?? ''}
+            onChange={(e) => assignGroup(it.id, e.target.value)}
+            title="把这条收藏移入组别(未分组 = 不归组)"
+            aria-label="选择收藏组别"
+          >
+            <option value="">未分组</option>
+            {groups.map((g) => (
+              <option key={g} value={g}>
+                {g}
+              </option>
+            ))}
+          </select>
+          <button
+            className="news-fav-btn active"
+            onClick={() => toggleFavorite(it)}
+            title="取消收藏"
+            aria-label="取消收藏"
+          >
+            ★
+          </button>
+        </div>
+      ) : (
+        <button
+          className={`news-fav-btn${fav ? ' active' : ''}`}
+          onClick={() => toggleFavorite(it)}
+          title={fav ? '取消收藏' : '收藏这条快讯'}
+          aria-label={fav ? '取消收藏' : '收藏'}
+        >
+          {fav ? '★' : '☆'}
+        </button>
+      )}
     </article>
   )
 
@@ -568,15 +680,6 @@ export default function NewsView() {
         </div>
       </div>
 
-      {favNote && (
-        <div className={`news-note${favNote.error ? ' news-note-error' : ''}`}>
-          <span>{favNote.text}</span>
-          <button className="btn small" onClick={() => setFavNote(null)} aria-label="关闭提示">
-            ✕
-          </button>
-        </div>
-      )}
-
       {showSettings && (
         <div className="news-settings">
           <div className="news-settings-title">「全部」显示的数据源</div>
@@ -615,14 +718,104 @@ export default function NewsView() {
         </div>
       )}
 
+      {active === 'fav' && (
+        <div className="news-groups">
+          <button
+            className={`news-group-chip${favGroup === 'all' ? ' active' : ''}`}
+            onClick={() => setFavGroup('all')}
+            title="查看全部收藏"
+          >
+            全部{favorites.length > 0 ? ` (${favorites.length})` : ''}
+          </button>
+          <button
+            className={`news-group-chip${favGroup === 'none' ? ' active' : ''}`}
+            onClick={() => setFavGroup('none')}
+            title="未归入任何组别的收藏"
+          >
+            未分组{ungroupedCount > 0 ? ` (${ungroupedCount})` : ''}
+          </button>
+          {groups.map((g) =>
+            renamingGroup === g ? (
+              <input
+                key={g}
+                ref={renameInputRef}
+                className="news-group-input"
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void handleRenameGroup(g)
+                  if (e.key === 'Escape') setRenamingGroup(null)
+                }}
+                onBlur={() => void handleRenameGroup(g)}
+                placeholder="新组别名称"
+                aria-label="重命名组别"
+              />
+            ) : (
+              <button
+                key={g}
+                className={`news-group-chip${favGroup === g ? ' active' : ''}`}
+                onClick={() => setFavGroup(g)}
+                onDoubleClick={() => {
+                  setRenamingGroup(g)
+                  setRenameValue(g)
+                }}
+                title={`组内 ${groupCount(g)} 条 · 双击重命名`}
+              >
+                {g}
+                <span className="news-group-count">{groupCount(g)}</span>
+                <span
+                  className="news-group-del"
+                  role="button"
+                  title="删除组别"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleDeleteGroup(g)
+                  }}
+                >
+                  ✕
+                </span>
+              </button>
+            ),
+          )}
+          {addingGroup ? (
+            <input
+              ref={addGroupInputRef}
+              className="news-group-input"
+              value={newGroupName}
+              onChange={(e) => setNewGroupName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleAddGroup()
+                if (e.key === 'Escape') {
+                  setAddingGroup(false)
+                  setNewGroupName('')
+                }
+              }}
+              onBlur={handleAddGroup}
+              placeholder="组别名称,回车确认"
+              aria-label="新建组别"
+            />
+          ) : (
+            <button className="news-group-add" onClick={() => setAddingGroup(true)} title="新建收藏组别,如「重要」「美股」「宏观」">
+              ＋ 新建组别
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="news-list" ref={listRef}>
         {active === 'fav' ? (
           favorites.length === 0 ? (
             <p className="empty">还没有收藏的快讯,点击快讯右侧的 ☆ 收藏。</p>
           ) : shown.length === 0 ? (
-            <p className="empty">没有匹配「{query.trim()}」的收藏快讯。</p>
+            <p className="empty">
+              {query.trim()
+                ? `没有匹配「${query.trim()}」的收藏快讯。`
+                : favGroup !== 'all'
+                  ? '该组别下暂无收藏,点击快讯右侧的 ☆ 收藏后可用下拉框归入组别。'
+                  : '没有匹配的收藏快讯。'}
+            </p>
           ) : (
-            shown.map((it) => renderItem(it, true))
+            shown.map((it) => renderItem(it, true, true))
           )
         ) : !loading && !noneEnabled && shown.length === 0 && displayed.length === 0 ? (
           <p className="empty">暂无快讯。</p>

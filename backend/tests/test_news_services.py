@@ -326,6 +326,69 @@ def test_news_favorites_dedup_import_empty_and_bare_array_noop(tmp_path):
     assert len(res["items"]) == 1
 
 
+# ---------- 收藏组别(二级分类,用户自建) ----------
+
+
+def test_favorite_groups_crud_and_dedupe(tmp_path):
+    db = Database(tmp_path / "earnings.db")
+    svc = NewsFavoriteService(db)
+    assert not svc.groups_configured()
+    assert svc.get_groups() == []
+
+    # 保存:去重、过滤空白、trim
+    svc.save_groups(["重要", " 美股 ", "宏观", "重要", "", "  "])
+    assert svc.groups_configured()
+    assert svc.get_groups() == ["重要", "美股", "宏观"]
+    # 幂等:再次保存保留原创建时间顺序
+    svc.save_groups(["宏观", "重要"])
+    assert svc.get_groups() == ["重要", "宏观"]
+
+
+def test_favorite_group_delete_moves_items_to_ungrouped(tmp_path):
+    db = Database(tmp_path / "earnings.db")
+    svc = NewsFavoriteService(db)
+    svc.save_groups(["重要", "宏观"])
+    svc.save([
+        {"id": "a:1", "title": "一", "source": "jin10", "groupName": "重要"},
+        {"id": "a:2", "title": "二", "source": "jin10", "groupName": "宏观"},
+        {"id": "a:3", "title": "三", "source": "jin10"},
+    ])
+    # 收藏时 groupName 持久化
+    by_id = {i["id"]: i for i in svc.get()}
+    assert by_id["a:1"]["groupName"] == "重要"
+    assert by_id["a:2"]["groupName"] == "宏观"
+    assert by_id["a:3"]["groupName"] is None
+
+    # 删除组别:组内收藏移回未分组,收藏本身保留
+    svc.delete_group("重要")
+    assert svc.get_groups() == ["宏观"]
+    got = {i["id"]: i["groupName"] for i in svc.get()}
+    assert got == {"a:1": None, "a:2": "宏观", "a:3": None}
+
+
+def test_favorite_group_rename_syncs_items_and_rejects_conflict(tmp_path):
+    db = Database(tmp_path / "earnings.db")
+    svc = NewsFavoriteService(db)
+    svc.save_groups(["重要", "宏观"])
+    svc.save([
+        {"id": "a:1", "title": "一", "source": "jin10", "groupName": "重要"},
+        {"id": "a:2", "title": "二", "source": "jin10"},
+    ])
+
+    # 重命名:组别名与收藏归属同步
+    assert svc.rename_group("重要", "重磅")
+    assert svc.get_groups() == ["重磅", "宏观"]
+    got = {i["id"]: i["groupName"] for i in svc.get()}
+    assert got == {"a:1": "重磅", "a:2": None}
+
+    # 目标名冲突 / 空名 / 不存在:拒绝且无副作用
+    assert not svc.rename_group("重磅", "宏观")
+    assert not svc.rename_group("重磅", "  ")
+    assert not svc.rename_group("不存在的组", "新组")
+    assert svc.get_groups() == ["重磅", "宏观"]
+    assert {i["id"]: i["groupName"] for i in svc.get()} == {"a:1": "重磅", "a:2": None}
+
+
 # ---------- 数据源偏好(全项目共享一份)+ 迁移 ----------
 
 
@@ -412,8 +475,12 @@ def test_db_migrates_legacy_client_rows(tmp_path):
     conn = sqlite3.connect(str(tmp_path / "earnings.db"))
     pref_cols = {r[1] for r in conn.execute("PRAGMA table_info(news_preference)")}
     fav_cols = {r[1] for r in conn.execute("PRAGMA table_info(news_favorite)")}
+    group_cols = {r[1] for r in conn.execute("PRAGMA table_info(news_favorite_group)")}
     conn.close()
     assert "client_id" not in pref_cols and "client_id" not in fav_cols
+    # 新列:收藏可带 group_name,组别表已就绪
+    assert "group_name" in fav_cols
+    assert "name" in group_cols
 
 
 # ---------- 快讯落库(去重) + 上游失败兜底 ----------

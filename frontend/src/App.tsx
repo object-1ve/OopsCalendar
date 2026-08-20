@@ -3,6 +3,7 @@ import CalendarView from './components/CalendarView'
 import DayDetailModal from './components/DayDetailModal'
 import Legend from './components/Legend'
 import NewsView from './components/NewsView'
+import { Toaster } from './components/ui/sonner'
 import { useEarnings } from './hooks/useEarnings'
 import { useFavorites } from './hooks/useFavorites'
 
@@ -52,6 +53,7 @@ export default function App() {
 
   return (
     <div className="app">
+      <Toaster />
       <header className="app-header">
         <div className="app-title">
           <h1>📅 美股财报日历</h1>

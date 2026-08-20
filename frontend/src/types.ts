@@ -59,6 +59,8 @@ export interface NewsItem {
   sourceName: string
   summary: string | null
   important: boolean
+  /** 收藏项所属组别(仅收藏列表使用;未分组为 undefined) */
+  groupName?: string | null
 }
 
 /** 新闻数据源元信息 */
@@ -90,6 +92,12 @@ export interface FavoritesResponse {
 export interface NewsFavoritesResponse {
   configured: boolean
   items: NewsItem[]
+}
+
+/** 收藏组别(二级分类)响应;configured=false = 从未创建过组别;groups 按创建时间升序 */
+export interface NewsFavoriteGroupsResponse {
+  configured: boolean
+  groups: string[]
 }
 
 /** 快讯收藏导出文件的封装格式(导入兼容;也接受裸 NewsItem 数组)。 */

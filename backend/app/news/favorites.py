@@ -20,6 +20,49 @@ class NewsFavoriteService:
         """返回收藏列表,最近收藏的在前;未配置过返回空列表。"""
         return self._db.get_news_favorites()
 
+    # ---------- 收藏组别(二级分类,用户自建) ----------
+
+    def groups_configured(self) -> bool:
+        return self._db.favorite_groups_exist()
+
+    def get_groups(self) -> list:
+        """返回组别名称列表(按创建时间升序);未配置过返回空列表。"""
+        return self._db.get_favorite_groups()
+
+    def save_groups(self, groups: list | None) -> None:
+        """整表替换组别列表:去重、过滤空白、trim;保留原创建时间。"""
+        seen = set()
+        names = []
+        for g in groups or []:
+            name = (str(g) if not isinstance(g, str) else g).strip()
+            if not name or name in seen:
+                continue
+            seen.add(name)
+            names.append(name)
+        self._db.replace_favorite_groups(names)
+
+    def delete_group(self, name: str) -> None:
+        """删除组别,并把该组下的收藏移回未分组(group_name 置空)。"""
+        clean_name = (name or "").strip()
+        if not clean_name:
+            return
+        self._db.replace_favorite_groups(
+            [n for n in self._db.get_favorite_groups() if n != clean_name]
+        )
+        self._db.clear_group_from_favorites(clean_name)
+
+    def rename_group(self, old: str, new: str) -> bool:
+        """重命名组别并同步收藏;目标名已存在或为空时返回 False。"""
+        clean_old = (old or "").strip()
+        clean_new = (new or "").strip()
+        if not clean_old or not clean_new or clean_old == clean_new:
+            return False
+        existing = set(self._db.get_favorite_groups())
+        if clean_old not in existing or clean_new in existing:
+            return False
+        self._db.rename_favorite_group(clean_old, clean_new)
+        return True
+
     def save(self, items: list | None) -> None:
         # 按 itemId 去重(保留首次出现)并过滤非法条目:缺 id / title / source 的快讯无法成行落库
         incoming = {}

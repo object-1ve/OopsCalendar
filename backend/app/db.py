@@ -88,6 +88,12 @@ class Database:
                     source_name TEXT,
                     summary TEXT,
                     important INTEGER NOT NULL DEFAULT 0,
+                    group_name TEXT,
+                    created_at TEXT NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS news_favorite_group (
+                    name TEXT PRIMARY KEY,
                     created_at TEXT NOT NULL
                 );
 
@@ -150,6 +156,7 @@ class Database:
                     " source_name TEXT,"
                     " summary TEXT,"
                     " important INTEGER NOT NULL DEFAULT 0,"
+                    " group_name TEXT,"
                     " created_at TEXT NOT NULL)"
                 )
                 seen: set = set()
@@ -159,10 +166,13 @@ class Database:
                     seen.add(r["item_id"])
                     conn.execute(
                         "INSERT OR REPLACE INTO news_favorite (item_id, title, url, pub_date, source, "
-                        "source_name, summary, important, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+                        "source_name, summary, important, group_name, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
                         (r["item_id"], r["title"], r["url"], r["pub_date"], r["source"],
-                         r["source_name"], r["summary"], r["important"], r["created_at"]),
+                         r["source_name"], r["summary"], r["important"], None, r["created_at"]),
                     )
+            elif "group_name" not in fav_cols:
+                # 中间版本表:无组别列,直接补列(数据不丢)
+                conn.execute("ALTER TABLE news_favorite ADD COLUMN group_name TEXT")
 
     # ---------- 财报持久化(二级缓存) ----------
 
@@ -263,6 +273,7 @@ class Database:
                 "sourceName": r["source_name"],
                 "summary": r["summary"],
                 "important": bool(r["important"]),
+                "groupName": r["group_name"],
             }
             out.append(item)
         return out
@@ -285,7 +296,7 @@ class Database:
             conn.execute("DELETE FROM news_favorite")
             conn.executemany(
                 "INSERT OR REPLACE INTO news_favorite (item_id, title, url, pub_date, source, "
-                "source_name, summary, important, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+                "source_name, summary, important, group_name, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
                 [
                     (
                         it["id"],
@@ -296,11 +307,77 @@ class Database:
                         it.get("sourceName"),
                         it.get("summary"),
                         1 if it.get("important") else 0,
+                        (it.get("groupName") or "").strip() or None,
                         created_at_map.get(it["id"], now),
                     )
                     for it in items
                 ],
             )
+
+    # ---------- 快讯收藏组别(全项目共享一份) ----------
+
+    def get_favorite_groups(self) -> list:
+        """返回组别名称列表(按创建时间升序)。"""
+        with self._lock, self._connect() as conn:
+            rows = conn.execute(
+                "SELECT name FROM news_favorite_group ORDER BY created_at ASC, name ASC"
+            ).fetchall()
+        return [r["name"] for r in rows]
+
+    def favorite_groups_exist(self) -> bool:
+        with self._lock, self._connect() as conn:
+            row = conn.execute("SELECT 1 FROM news_favorite_group LIMIT 1").fetchone()
+        return row is not None
+
+    def favorite_group_created_map(self) -> dict:
+        """{name: created_at ISO} 组别创建时间映射(整表替换时保留原时间)。"""
+        with self._lock, self._connect() as conn:
+            rows = conn.execute("SELECT name, created_at FROM news_favorite_group").fetchall()
+        return {r["name"]: r["created_at"] for r in rows}
+
+    def replace_favorite_groups(self, names: list) -> None:
+        """整表替换组别列表。names 去重并过滤空白;同批新建的组别按输入顺序排列(时间戳递增)。"""
+        now = datetime.now(timezone.utc)
+        existing = self.favorite_group_created_map()
+        base = now - timedelta(microseconds=len(names))
+        with self._lock, self._connect() as conn:
+            conn.execute("DELETE FROM news_favorite_group")
+            new_idx = 0
+            rows = []
+            for n in names:
+                if n in existing:
+                    created = existing[n]
+                else:
+                    created = (base + timedelta(microseconds=new_idx)).isoformat()
+                    new_idx += 1
+                rows.append((n, created))
+            conn.executemany(
+                "INSERT OR REPLACE INTO news_favorite_group (name, created_at) VALUES (?,?)",
+                rows,
+            )
+
+    def clear_group_from_favorites(self, name: str) -> None:
+        """删除组别时,把该组下的收藏移回未分组(group_name 置空)。"""
+        with self._lock, self._connect() as conn:
+            conn.execute("UPDATE news_favorite SET group_name = NULL WHERE group_name = ?", (name,))
+
+    def rename_favorite_group(self, old: str, new: str) -> None:
+        """重命名组别:更新组别表并同步收藏的 group_name。"""
+        now = _now_iso()
+        with self._lock, self._connect() as conn:
+            row = conn.execute(
+                "SELECT created_at FROM news_favorite_group WHERE name = ?", (old,)
+            ).fetchone()
+            created_at = row["created_at"] if row else now
+            conn.execute(
+                "INSERT OR REPLACE INTO news_favorite_group (name, created_at) VALUES (?,?)",
+                (new, created_at),
+            )
+            if old != new:
+                conn.execute("DELETE FROM news_favorite_group WHERE name = ?", (old,))
+                conn.execute(
+                    "UPDATE news_favorite SET group_name = ? WHERE group_name = ?", (new, old)
+                )
 
     # ---------- 快讯落库(去重存储抓取到的快讯) ----------
 

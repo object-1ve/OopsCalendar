@@ -1,5 +1,7 @@
+import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
 
 // 前端所有 /api 请求转发到 Python 后端 (开发 server 与生产 preview 共用)
 // 默认 8080;可用环境变量 VITE_API_TARGET 覆盖(如隔离端口联调 / 部署到其他地址)
@@ -12,7 +14,12 @@ const apiProxy = {
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+    },
+  },
   server: {
     host: '127.0.0.1',
     port: 5174,
