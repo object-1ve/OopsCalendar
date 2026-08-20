@@ -56,3 +56,16 @@ export function formatNewsTime(ms: number | null): string {
   const ss = get(p, 'second')
   return `${y}-${mo}-${day} ${hh}:${mm}:${ss}`
 }
+
+/** 字节数格式化为可读大小(B/KB/MB/GB)。 */
+export function formatBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B'
+  const units = ['B', 'KB', 'MB', 'GB']
+  let i = 0
+  let v = bytes
+  while (v >= 1024 && i < units.length - 1) {
+    v /= 1024
+    i += 1
+  }
+  return `${i === 0 ? v : v.toFixed(1)} ${units[i]}`
+}

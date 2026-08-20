@@ -83,6 +83,8 @@ export function fetchNewsSources(signal?: AbortSignal): Promise<NewsSourceMeta[]
 
 export interface NewsCountResponse {
   count: number
+  /** 数据库文件磁盘占用(主库 + WAL + SHM,单位字节);旧后端可能缺省。 */
+  bytes?: number
 }
 
 /** 数据库中已入库快讯的总条数(全部数据源,不受筛选影响)。 */

@@ -389,6 +389,17 @@ class Database:
             rows = conn.execute("SELECT item_id FROM news_item").fetchall()
         return {r["item_id"] for r in rows}
 
+    def size_bytes(self) -> int:
+        """数据库文件在磁盘上的占用(主库 + WAL + SHM,单位字节;不存在按 0 计)。"""
+        total = 0
+        for suffix in ("", "-wal", "-shm"):
+            p = Path(str(self.path) + suffix)
+            try:
+                total += p.stat().st_size
+            except OSError:
+                pass
+        return total
+
     # ---------- 工具 ----------
 
     @staticmethod

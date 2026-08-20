@@ -431,6 +431,15 @@ def test_news_persists_dedupe_to_db(tmp_path):
     assert len(db.load_news_items(100)) == 2
 
 
+def test_db_size_bytes_reports_disk_footprint(tmp_path):
+    db = Database(tmp_path / "earnings.db")
+    before = db.size_bytes()
+    assert before >= 0
+    db.upsert_news_items([item("a", "s1", 1), item("b", "s1", 2)])
+    # 写入数据后主库/WAL 落盘,占用严格增长
+    assert db.size_bytes() > before
+
+
 def test_news_fallback_to_db_on_source_failure(tmp_path):
     db = Database(tmp_path / "earnings.db")
     store = NewsStore(db)

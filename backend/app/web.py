@@ -227,8 +227,8 @@ def create_app() -> FastAPI:
 
     @app.get("/api/news/count")
     async def news_count():
-        """数据库中已入库快讯的总条数(全部数据源,不受筛选影响)。"""
-        return clean({"count": news_store.count()})
+        """数据库中已入库快讯的总条数(全部数据源,不受筛选影响)与数据库文件占用字节数。"""
+        return clean({"count": news_store.count(), "bytes": db.size_bytes()})
 
     @app.get("/api/news/history")
     async def news_history(

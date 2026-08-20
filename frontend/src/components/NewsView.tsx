@@ -13,7 +13,7 @@ import {
   saveNewsPreferences,
 } from '../api'
 import { useNewsFavorites } from '../hooks/useNewsFavorites'
-import { formatNewsTime } from '../utils'
+import { formatBytes, formatNewsTime } from '../utils'
 
 /** 快讯视图:SSE 实时推送 + 数据源配置 + 客户端即时筛选。 */
 const STORAGE_KEY = 'opsCalendar.newsSources'
@@ -95,6 +95,7 @@ export default function NewsView() {
   const [moreDone, setMoreDone] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [dbCount, setDbCount] = useState<number | null>(null)
+  const [dbSize, setDbSize] = useState<number | null>(null)
   const loadingMoreRef = useRef(false)
   const listRef = useRef<HTMLDivElement | null>(null)
   const pendingRef = useRef<number | null>(null) // 防抖定时器
@@ -245,7 +246,10 @@ export default function NewsView() {
     const loadCount = () =>
       fetchNewsCount()
         .then((resp) => {
-          if (!cancelled) setDbCount(resp.count)
+          if (!cancelled) {
+            setDbCount(resp.count)
+            if (typeof resp.bytes === 'number') setDbSize(resp.bytes)
+          }
         })
         .catch(() => {
           // 后端不可达时静默,不打断快讯主流程
@@ -516,8 +520,11 @@ export default function NewsView() {
           />
           {query.trim() && <span className="news-result-count">匹配 {filtered.length} 条</span>}
           {dbCount != null && (
-            <span className="news-db-count" title="数据库已入库快讯总条数(不受筛选影响)">
-              库中 {dbCount} 条
+            <span
+              className="news-db-count"
+              title={`数据库已入库快讯总条数与存储占用(不受筛选影响)${dbSize != null ? `,当前占用 ${formatBytes(dbSize)}` : ''}`}
+            >
+              库中 {dbCount} 条{dbSize != null ? ` · ${formatBytes(dbSize)}` : ''}
             </span>
           )}
           <span className="news-live" title="已连接实时推送,新快讯约 15 秒内到达">
