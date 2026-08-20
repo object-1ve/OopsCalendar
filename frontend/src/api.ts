@@ -224,7 +224,10 @@ async function postNewsImport<T>(endpoint: string, items: NewsItem[]): Promise<T
       const body = (await resp.json()) as { message?: string }
       if (body.message) message = body.message
     } catch {
-      // 非 JSON 错误体,保留默认信息
+      // 非 JSON 错误体,保留状态码提示
+    }
+    if (resp.status === 413 && message === '导入失败 (HTTP 413)') {
+      message = '导入失败:文件过大(HTTP 413),服务器限制了请求体大小,请减小文件或联系管理员调大上限'
     }
     throw new Error(message)
   }
