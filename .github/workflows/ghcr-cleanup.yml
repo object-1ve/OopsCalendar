@@ -12,8 +12,8 @@ name: Prune GHCR sha images
 
 on:
   schedule:
-    # 每周一 03:17 UTC(北京时间 11:17),避开周末/工作日高峰
-    - cron: '17 3 * * 1'
+    # 每天 04:00 UTC(北京时间 12:00)清理一次
+    - cron: '0 4 * * *'
   workflow_dispatch:
     inputs:
       dry_run:
@@ -23,7 +23,7 @@ on:
       keep:
         description: 保留最近多少个纯 sha 版本
         required: false
-        default: '10'
+        default: '5'
 
 permissions:
   contents: read
@@ -36,7 +36,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       OWNER: ${{ github.repository_owner }}
       OWNER_TYPE: ${{ github.repository_owner_type }}
-      KEEP_SHA: ${{ inputs.keep || '10' }}
+      KEEP_SHA: ${{ inputs.keep || '5' }}
       DRY_RUN: ${{ inputs.dry_run || 'false' }}
     steps:
       - name: Delete old sha-only GHCR versions
