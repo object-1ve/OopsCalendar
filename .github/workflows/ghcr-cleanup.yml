@@ -1,0 +1,87 @@
+# 定期清理 GHCR 中只带 sha-* 标签的旧镜像版本
+#
+# 背景:每次 push master 的 CI(docker-publish.yml)都会给镜像打 latest / master / sha-<hash>
+# 标签。latest / master 会被后续构建覆盖,但 sha-* 是每次构建独有的,会在 GHCR 里无限累积,
+# 占用存储额度。本 workflow 每周定时(也可手动触发)把"只带 sha 标签"的旧版本清理掉,
+# 只保留最近 KEEP_SHA 个;带 latest / master / v* 标签的版本永远不删。
+#
+# 注意:删除的是"版本"(由 digest 唯一标识)。新构建的版本同时带 latest/master/sha,
+# 会被判定为受保护;只有后续构建覆盖 latest/master 后,旧版本变为"仅 sha"才会成为清理对象。
+
+name: Prune GHCR sha images
+
+on:
+  schedule:
+    # 每周一 03:17 UTC(北京时间 11:17),避开周末/工作日高峰
+    - cron: '17 3 * * 1'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 只列出将删除的版本,不真正删除(true/false)
+        required: false
+        default: 'false'
+      keep:
+        description: 保留最近多少个纯 sha 版本
+        required: false
+        default: '10'
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      OWNER: ${{ github.repository_owner }}
+      OWNER_TYPE: ${{ github.repository_owner_type }}
+      KEEP_SHA: ${{ inputs.keep || '10' }}
+      DRY_RUN: ${{ inputs.dry_run || 'false' }}
+    steps:
+      - name: Delete old sha-only GHCR versions
+        run: |
+          set -euo pipefail
+
+          if [[ "$OWNER_TYPE" == "organization" ]]; then
+            BASE="/orgs/${OWNER}"
+          else
+            BASE="/user"
+          fi
+          echo "API base: ${BASE}, keep=${KEEP_SHA}, dry_run=${DRY_RUN}"
+
+          for pkg in oops-calendar-frontend oops-calendar-backend; do
+            echo "== ${pkg} =="
+            list=$(mktemp)
+            page=1
+            while :; do
+              resp=$(gh api "${BASE}/packages/container/${pkg}/versions?per_page=100&page=${page}" 2>/dev/null) \
+                || { echo "  skip: 包不存在或无权访问"; break; }
+              count=$(jq 'length' <<<"$resp")
+              # 仅保留"所有标签都以 sha- 开头"的版本(含无标签版本)作为清理候选
+              jq -r '.[] | select([.metadata.container.tags[] | startswith("sha-")] | all) | [.id, .name, .created_at] | @tsv' \
+                <<<"$resp" >>"$list"
+              page=$((page + 1))
+              [[ "$count" -lt 100 ]] && break
+            done
+
+            total=$(wc -l <"$list" | tr -d ' ')
+            echo "  纯 sha 版本数(待处理): ${total}"
+            if [[ "$total" -le "$KEEP_SHA" ]]; then
+              echo "  未超过保留上限,无需清理"
+              rm -f "$list"
+              continue
+            fi
+
+            # 按创建时间倒序,保留最新的 KEEP_SHA 个,其余删除
+            LC_ALL=C sort -k3r "$list" | tail -n +$((KEEP_SHA + 1)) | while read -r id name created; do
+              if [[ "$DRY_RUN" == "true" ]]; then
+                echo "  [dry-run] 将删除 ${name} (${created})"
+              else
+                gh api -X DELETE "${BASE}/packages/container/${pkg}/versions/${id}" --silent \
+                  && echo "  已删除 ${name} (${created})" \
+                  || echo "  删除失败(可能已被删): ${name}"
+              fi
+            done
+            rm -f "$list"
+          done
