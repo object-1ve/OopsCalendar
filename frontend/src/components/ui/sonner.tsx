@@ -6,10 +6,10 @@ import { Toaster as Sonner, type ToasterProps } from 'sonner'
  *   toast.success('已创建组别「医药」')
  *   toast.error('删除失败,请稍后重试')
  */
-const Toaster = ({ ...props }: ToasterProps) => {
+const Toaster = ({ theme = 'dark', ...props }: ToasterProps) => {
   return (
     <Sonner
-      theme="dark"
+      theme={theme}
       position="top-center"
       toastOptions={{
         style: {

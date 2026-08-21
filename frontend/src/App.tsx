@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Moon, Sun } from 'lucide-react'
 import CalendarView from './components/CalendarView'
 import DayDetailModal from './components/DayDetailModal'
 import Legend from './components/Legend'
@@ -45,6 +46,25 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const { view, navigate } = useRoute()
   const { favorites, toggleFavorite } = useFavorites()
+  // 明暗主题:localStorage 持久化,未设置时跟随系统偏好
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    try {
+      const saved = localStorage.getItem('opsCalendar.theme')
+      if (saved === 'light' || saved === 'dark') return saved
+    } catch {
+      // 存储不可用时走系统偏好
+    }
+    return window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+  })
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    try {
+      localStorage.setItem('opsCalendar.theme', theme)
+    } catch {
+      // 存储不可用时静默忽略
+    }
+  }, [theme])
 
   const selectedEvents = useMemo(() => {
     if (!selectedDate || !data) return []
@@ -53,13 +73,21 @@ export default function App() {
 
   return (
     <div className="app">
-      <Toaster />
+      <Toaster theme={theme} />
       <header className="app-header">
         <div className="app-title">
           <h1>📅 美股财报日历</h1>
           <p className="subtitle">美国上市公司财报发布日期 · 区分盘前 / 盘后 · 标注已公布 / 未公布</p>
         </div>
         <div className="header-right">
+          <button
+            className="btn theme-toggle"
+            onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+            title={theme === 'dark' ? '切换到浅色主题' : '切换到深色主题'}
+            aria-label="切换明暗主题"
+          >
+            {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+          </button>
           <div className="view-tabs">
             <button
               className={`view-tab ${view === 'calendar' ? 'active' : ''}`}
